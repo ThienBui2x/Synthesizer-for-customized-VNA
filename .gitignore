@@ -7,6 +7,9 @@
 node_modules/
 dist/
 
+# Debug files
+Debug/
+
 # Compiled Java class files
 *.class
 
