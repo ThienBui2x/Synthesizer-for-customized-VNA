@@ -16,6 +16,12 @@ char welcome[3][12] =
 	"  ver 1.0  \0"
 };
 
+char initialize[2][12] =
+{
+	"  ADF4351  \0",
+	"Initializes\0"
+};
+
 char home[6][24] =
 {
 	"-------- HOME ---------\0",

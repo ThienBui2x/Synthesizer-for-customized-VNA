@@ -18,6 +18,7 @@
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
+#include "adc.h"
 #include "spi.h"
 #include "tim.h"
 #include "gpio.h"
@@ -26,6 +27,7 @@
 /* USER CODE BEGIN Includes */
 #include "ILI9225.h"
 #include "adf4351_hmi.h"
+#include "adf4351.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -47,6 +49,20 @@
 
 /* USER CODE BEGIN PV */
 extern volatile hmi_status hmi;
+uint16_t volatile v_mag[1000] = {0};
+uint16_t volatile v_mag_ave = 1250;
+uint16_t volatile v_mag_idx = 0;
+
+uint8_t volatile min_val = 70;	// top of y-axis
+uint8_t volatile max_val = 168; // bottom of y-axis
+uint8_t volatile mean_val = 0;
+uint16_t volatile v_mag_max_val = 0;
+uint16_t volatile v_mag_min_val = 0;
+
+uint8_t volatile y_curr_val = 0;
+uint8_t volatile x_curr_val = 0;
+uint8_t volatile y_prev_val = 0;
+uint8_t volatile x_prev_val = 0;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -64,32 +80,73 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 
   if(GPIO_Pin == BACK_BUT_Pin)
   {
-	  HAL_GPIO_TogglePin(GREEN_LED_GPIO_Port, GREEN_LED_Pin);
+//	  HAL_GPIO_TogglePin(GREEN_LED_GPIO_Port, GREEN_LED_Pin);
 	  hmi.button = BACK;
+
+	  if(hmi.curr_state == Plot_VMAG)
+	  {
+		  /* Make sure the plotting is stopped before exiting the stage */
+		  if (hmi.while_break == FALSE) hmi.while_break = TRUE;
+	  }
   }
 
   if (GPIO_Pin == UP_BUT_Pin)
   {
-	  HAL_GPIO_TogglePin(ORANGE_LED_GPIO_Port, ORANGE_LED_Pin);
+//	  HAL_GPIO_TogglePin(ORANGE_LED_GPIO_Port, ORANGE_LED_Pin);
 	  hmi.button = UP;
   }
 
   if (GPIO_Pin == DOWN_BUT_Pin)
   {
-	  HAL_GPIO_TogglePin(RED_LED_GPIO_Port, RED_LED_Pin);
+//	  HAL_GPIO_TogglePin(RED_LED_GPIO_Port, RED_LED_Pin);
 	  hmi.button = DOWN;
   }
 
   if (GPIO_Pin == OK_BUT_Pin)
   {
-	  HAL_GPIO_TogglePin(BLUE_LED_GPIO_Port, BLUE_LED_Pin);
+//	  HAL_GPIO_TogglePin(BLUE_LED_GPIO_Port, BLUE_LED_Pin);
 	  hmi.button = OK;
+
+	  if(hmi.curr_state == Plot_VMAG)
+	  {
+		  /* Toggle to Start/Stop plotting */
+		  if (hmi.while_break == TRUE) hmi.while_break = FALSE;
+		  else hmi.while_break = TRUE;
+	  }
   }
 
   if (GPIO_Pin == FORW_BUT_Pin)
   {
 	  hmi.button = FORW;
   }
+}
+
+void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef *hadc)
+{
+	/* Prevent unused argument(s) compilation warning */
+	UNUSED(hadc);
+	if(hadc->Instance == ADC1)
+	{
+		if(v_mag_idx == 200)
+		{
+			v_mag_idx = 0;
+			Clear_Screen_Custom(11,70,210,168);
+		}
+		v_mag[v_mag_idx] = HAL_ADC_GetValue(&adf4351_hadc);
+//		v_mag_ave += (v_mag[v_mag_idx]-v_mag_ave) / (v_mag_idx+1);
+		x_curr_val = 11+v_mag_idx;
+		if(v_mag[v_mag_idx] > v_mag_max_val) y_curr_val = min_val;
+		else if(v_mag[v_mag_idx] < v_mag_min_val) y_curr_val = max_val;
+		else y_curr_val = (v_mag[v_mag_idx] * mean_val) / v_mag_ave;
+
+		if(v_mag_idx != 0) Bresenham_line_algorithm(x_prev_val, y_prev_val, x_curr_val, y_curr_val);
+
+		y_prev_val = y_curr_val;
+		x_prev_val = x_curr_val;
+
+		v_mag_idx++;
+
+	}
 }
 /* USER CODE END 0 */
 
@@ -124,14 +181,84 @@ int main(void)
   MX_GPIO_Init();
   MX_SPI2_Init();
   MX_TIM1_Init();
+  MX_ADC1_Init();
+  MX_SPI1_Init();
+  MX_TIM2_Init();
   /* USER CODE BEGIN 2 */
-  //Initialize the LCD
+  mean_val = max_val-min_val+1;
+  v_mag_max_val = max_val * v_mag_ave / mean_val;
+  v_mag_min_val = min_val * v_mag_ave / mean_val;
+
+//  Initialize the LCD
   lcd_init();
-  HAL_Delay(100);
+//  HAL_Delay(100);
   HMI_Init();
   Welcome();
-  HAL_Delay(1000);
 
+  /* Test graph animation */
+  /*
+   * Width  (x): [2 .. WIDTH-1]
+   * Height (y): [1 .. HEIGHT-2]
+   * Top of graph (x,y): (10,70)
+   * End of graph (x,y): (209, 169)
+   */
+//  uint8_t min_val = 70;	// top of y-axis
+//  uint8_t max_val = 169; // bottom of y-axis
+//  uint8_t mean_val = max_val-min_val+1;
+//  uint16_t v_mag_max_val = max_val * v_mag_ave / mean_val;
+//  uint16_t v_mag_min_val = min_val * v_mag_ave / mean_val;
+
+//  Clear_Screen();
+//  draw_string(2, 2+CHAR_HEIGHT_SMALL*0, COLOR_TEXT, 1, "Hello-Hello\0");
+//  draw_string(2, 2+CHAR_HEIGHT_SMALL*1, COLOR_TEXT, 1, "Hello-Hello\0");
+//  draw_pixel(2, 30, COLOR_TITLE);
+
+//  // Draw y-axis
+//  for (int i = 70; i < 170; i++)
+//  {
+//	  draw_pixel(10, i, COLOR_TITLE);
+//  }
+//  // Draw x-axis
+//  for (int i = 10; i < 210; i++)
+//  {
+//	  draw_pixel(i, 169, COLOR_TITLE);
+//  }
+  //Plot v_mag data
+//  uint8_t y_curr_val = 0;
+//  uint8_t x_curr_val = 0;
+//  uint8_t y_prev_val = 0;
+//  uint8_t x_prev_val = 0;
+//  for (int i = 0; i < 200; i++)
+//  {
+//	  x_curr_val = 10 + i;
+//	  if(v_mag[i] > v_mag_max_val) y_curr_val = min_val;
+//	  else if(v_mag[i] < v_mag_min_val) y_curr_val = max_val;
+//	  else y_curr_val = (v_mag[i] * mean_val) / v_mag_ave;
+//
+//	  if(i != 0) Bresenham_line_algorithm(x_prev_val, y_prev_val, x_curr_val, y_curr_val);
+//
+//	  y_prev_val = y_curr_val;
+//	  x_prev_val = x_curr_val;
+//  }
+//  Bresenham_line_algorithm(10, 100, 20, 150);
+//  Bresenham_line_algorithm(20, 150, 40, 160);
+//  Bresenham_line_algorithm(40, 160, 50, 169);
+//  Bresenham_line_algorithm(50, 169, 60, 125);
+//  Bresenham_line_algorithm(60, 125, 80, 85);
+
+//  ADF4351_Initialize();
+//
+//  ADF4351_Set_Out_Freq(920000000);
+//  ADF4351_Set_Out_Freq(50000000);
+
+//  for (int i = 0; i < 400; i++)
+//  {
+//	  HAL_GPIO_TogglePin(BLUE_LED_GPIO_Port, BLUE_LED_Pin);
+//	  HAL_ADC_Start_IT(&adf4351_hadc);
+//	  HAL_Delay(100);
+//  }
+//  HAL_TIM_Base_Start(&htim1);
+//  HAL_TIM_Base_Start(&htim2);
   /* USER CODE END 2 */
 
   /* Infinite loop */

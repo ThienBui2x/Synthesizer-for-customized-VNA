@@ -68,10 +68,11 @@ typedef struct
 	uint8_t			cur_end;
 	void			(*curr_state)(void);
 	void			(*prev_state)(void);
-
+	uint8_t			while_break;
 } hmi_status;
 
 void Clear_Screen(void);
+void Clear_Screen_Custom(uint8_t x_s, uint8_t y_s, uint8_t x_e, uint8_t y_e);
 void Set_Cursor(uint8_t pos);
 void Clear_Cursor(uint8_t pos);
 void HMI_Init(void);
@@ -80,6 +81,7 @@ void Home(void);
 void Set_RF_Out(void);
 void Scan_RF_Out(void);
 void Read_VMAG(void);
+void Bresenham_line_algorithm(uint8_t x1, uint8_t y1, uint8_t x2, uint8_t y2);
 void Plot_VMAG(void);
 void Set_RF_Power(void);
 #ifdef	__cplusplus
