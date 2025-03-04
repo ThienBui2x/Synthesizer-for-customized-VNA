@@ -18,6 +18,7 @@
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
+#include "adc.h"
 #include "spi.h"
 #include "tim.h"
 #include "gpio.h"
@@ -26,6 +27,7 @@
 /* USER CODE BEGIN Includes */
 #include "ILI9225.h"
 #include "adf4351_hmi.h"
+#include "adf4351.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -47,6 +49,20 @@
 
 /* USER CODE BEGIN PV */
 extern volatile hmi_status hmi;
+extern uint16_t volatile vmag[SAMPLES];
+extern uint16_t volatile vmag_ave;
+extern uint16_t volatile vmag_idx;
+extern uint8_t  volatile vmag_offset;
+extern uint16_t volatile vmag_max_val;
+extern uint16_t volatile vmag_min_val;
+
+extern uint8_t  volatile y_min_val;
+extern uint8_t  volatile y_max_val;
+extern uint8_t  volatile y_mean_val;
+extern uint8_t  volatile y_curr_val;
+extern uint8_t  volatile x_curr_val;
+extern uint8_t  volatile y_prev_val;
+extern uint8_t  volatile x_prev_val;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -64,32 +80,90 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 
   if(GPIO_Pin == BACK_BUT_Pin)
   {
-	  HAL_GPIO_TogglePin(GREEN_LED_GPIO_Port, GREEN_LED_Pin);
 	  hmi.button = BACK;
+
+	  if(hmi.curr_state == Plot_VMAG)
+	  {
+		  /* Make sure the plotting is stopped before exiting the stage */
+		  if (hmi.while_break == FALSE) hmi.while_break = TRUE;
+	  }
   }
 
   if (GPIO_Pin == UP_BUT_Pin)
   {
-	  HAL_GPIO_TogglePin(ORANGE_LED_GPIO_Port, ORANGE_LED_Pin);
 	  hmi.button = UP;
   }
 
   if (GPIO_Pin == DOWN_BUT_Pin)
   {
-	  HAL_GPIO_TogglePin(RED_LED_GPIO_Port, RED_LED_Pin);
 	  hmi.button = DOWN;
   }
 
   if (GPIO_Pin == OK_BUT_Pin)
   {
-	  HAL_GPIO_TogglePin(BLUE_LED_GPIO_Port, BLUE_LED_Pin);
 	  hmi.button = OK;
+
+	  if(hmi.curr_state == Plot_VMAG)
+	  {
+		  /* Toggle to Start/Stop plotting */
+		  if (hmi.while_break == TRUE) hmi.while_break = FALSE;
+		  else hmi.while_break = TRUE;
+	  }
   }
 
   if (GPIO_Pin == FORW_BUT_Pin)
   {
 	  hmi.button = FORW;
   }
+}
+
+void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef *hadc)
+{
+	/* Prevent unused argument(s) compilation warning */
+	UNUSED(hadc);
+	if(hadc->Instance == ADC1)
+	{
+		/* Reset the screen condition */
+		if(vmag_idx == SAMPLES+OFFSET)
+		{
+			vmag_idx = 0;
+			Clear_Screen_Custom(X_AXIS_LEFT+1,Y_AXIS_TOP,X_AXIS_RIGHT,Y_AXIS_BOT-1);
+		}
+
+		/* Read VMAG values from ADC */
+		vmag[vmag_idx] = HAL_ADC_GetValue(&adf4351_hadc);
+
+		/* The first OFFSET values to find VMAG average */
+		if(vmag_idx < OFFSET)
+		{
+			vmag_ave += vmag[vmag_idx];
+		}
+		else
+		{
+			if(vmag_idx == OFFSET)
+			{
+				vmag_ave /= OFFSET;
+				y_mean_val = y_max_val-y_min_val+1;
+				vmag_max_val = y_max_val * vmag_ave / y_mean_val;
+				vmag_min_val = y_min_val * vmag_ave / y_mean_val;
+			}
+
+			/* Draw the pattern */
+			x_curr_val = (vmag_idx-OFFSET) + (X_AXIS_LEFT+1);
+			if(vmag[vmag_idx] > vmag_max_val) y_curr_val = y_min_val;
+			else if(vmag[vmag_idx] < vmag_min_val) y_curr_val = y_max_val;
+			else y_curr_val = (vmag[vmag_idx] * y_mean_val) / vmag_ave;
+
+			/* The higher y_value, the lower the y-plot */
+			y_curr_val = y_curr_val + 2*(y_mean_val-y_curr_val);
+
+			if(vmag_idx > OFFSET) Bresenham_line_algorithm(x_prev_val, y_prev_val, x_curr_val, y_curr_val);
+
+			y_prev_val = y_curr_val;
+			x_prev_val = x_curr_val;
+		}
+		vmag_idx++;
+	}
 }
 /* USER CODE END 0 */
 
@@ -124,13 +198,14 @@ int main(void)
   MX_GPIO_Init();
   MX_SPI2_Init();
   MX_TIM1_Init();
+  MX_ADC1_Init();
+  MX_SPI1_Init();
+  MX_TIM2_Init();
   /* USER CODE BEGIN 2 */
-  //Initialize the LCD
+//  Initialize the LCD
   lcd_init();
-  HAL_Delay(100);
   HMI_Init();
   Welcome();
-  HAL_Delay(1000);
 
   /* USER CODE END 2 */
 

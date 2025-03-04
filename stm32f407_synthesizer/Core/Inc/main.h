@@ -57,6 +57,16 @@ void Error_Handler(void);
 /* USER CODE END EFP */
 
 /* Private defines -----------------------------------------------------------*/
+#define test_Pin GPIO_PIN_1
+#define test_GPIO_Port GPIOC
+#define VMAG_Pin GPIO_PIN_1
+#define VMAG_GPIO_Port GPIOA
+#define ADF4351_LE_Pin GPIO_PIN_4
+#define ADF4351_LE_GPIO_Port GPIOA
+#define ADF4351_CLK_Pin GPIO_PIN_5
+#define ADF4351_CLK_GPIO_Port GPIOA
+#define ADF4351_MOSI_Pin GPIO_PIN_7
+#define ADF4351_MOSI_GPIO_Port GPIOA
 #define BACK_BUT_Pin GPIO_PIN_11
 #define BACK_BUT_GPIO_Port GPIOE
 #define BACK_BUT_EXTI_IRQn EXTI15_10_IRQn
