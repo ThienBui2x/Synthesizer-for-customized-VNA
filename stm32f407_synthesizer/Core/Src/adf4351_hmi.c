@@ -11,7 +11,20 @@
 
 volatile hmi_status hmi;
 
-extern uint16_t volatile v_mag_idx;
+uint16_t volatile vmag[SAMPLES+OFFSET] = {0};
+uint16_t volatile vmag_ave = 0;
+uint16_t volatile vmag_idx = 0;
+uint8_t  volatile vmag_offset = 5;
+uint16_t volatile vmag_max_val = 0;
+uint16_t volatile vmag_min_val = 0;
+
+uint8_t volatile y_min_val = Y_AXIS_TOP;	// top of y-axis
+uint8_t volatile y_max_val = Y_AXIS_BOT-1; // bottom of y-axis
+uint8_t volatile y_mean_val = 0;
+uint8_t volatile y_curr_val = 0;
+uint8_t volatile x_curr_val = 0;
+uint8_t volatile y_prev_val = 0;
+uint8_t volatile x_prev_val = 0;
 
 extern char cursor[2];
 extern char welcome[3][12];
@@ -82,6 +95,20 @@ void Welcome(void)
 	hmi.state_hold	= FALSE;
 }
 
+/*
+ * @brief	Main menu for RF Synthesizer
+ * 			Current/Up-comming stages:
+ * 				- Set_RF_Out	- TODO
+ * 				- Scan_RF_Out	- TODO
+ * 				- Read_VMAG		- TODO
+ * 				- Plot_VMAG		- DONE
+ * 				- Set_RF_Power	- TODO
+ * @note	BACK-BUT	N/A
+ * 			RIGHT-BUT	N/A
+ * 			UP-BUT		Move cursor up
+ * 			FORW-BUT	Move cursor down
+ * 			OK-BUT		Switch to stage at current cursor
+ */
 void Home(void)
 {
 	hmi.button = NONE;
@@ -126,7 +153,6 @@ void Home(void)
 
 			case (OK):
 				hmi.button = NONE;
-//				hmi.prev_state = hmi.curr_state;
 				hmi.curr_state = home_func_ptr[hmi.cur_pos-1];
 				hmi.state_hold = FALSE;
 				break;
@@ -144,7 +170,7 @@ void Home(void)
 /*
  * @brief	Plotting VMAG values in time-domain using ADC
  * 			based on the scanned frequency.
- * 			BACK-BUT	Returns to previous state
+ * @note	BACK-BUT	Returns to previous state
  * 			RIGHT-BUT	N/A
  * 			UP-BUT		N/A
  * 			FORW-BUT	Stop plotting
@@ -154,7 +180,10 @@ void Plot_VMAG(void)
 {
 	hmi.button = NONE;
 	hmi.state_hold = TRUE;
-	v_mag_idx = 0;
+
+	/* Reset the index when starting plotting */
+	vmag_idx = 0;
+	vmag_ave = 0;
 
 	/* NOTE: there is no need for cursor operation in this stage */
 	Clear_Screen();
@@ -171,14 +200,14 @@ void Plot_VMAG(void)
 	 * --> Total 200 (= 210-10) samples are drawn per time.
 	*/
 	// Draw y-axis
-	for (int i = 70; i <= 170; i++)
+	for (int i = Y_AXIS_TOP; i <= Y_AXIS_BOT; i++)
 	{
-	  draw_pixel(10, i, COLOR_TITLE);
+	  draw_pixel(X_AXIS_LEFT, i, COLOR_TITLE);
 	}
 	// Draw x-axis
-	for (int i = 10; i <= 210; i++)
+	for (int i = X_AXIS_LEFT; i <= X_AXIS_RIGHT; i++)
 	{
-	  draw_pixel(i, 170, COLOR_TITLE);
+	  draw_pixel(i, Y_AXIS_BOT, COLOR_TITLE);
 	}
 
 	while(hmi.state_hold)

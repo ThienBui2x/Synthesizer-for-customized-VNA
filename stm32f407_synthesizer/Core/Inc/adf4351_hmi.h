@@ -49,6 +49,13 @@ extern "C" {
 #define TRUE	1
 #define FALSE	0
 
+#define X_AXIS_LEFT		10
+#define X_AXIS_RIGHT	210
+#define	Y_AXIS_TOP		70
+#define Y_AXIS_BOT		170
+#define SAMPLES			X_AXIS_RIGHT - X_AXIS_LEFT
+#define OFFSET			5
+
 typedef enum
 {
 	NONE,
