@@ -20,6 +20,8 @@
 /* Variables -----------------------------------------------------------------*/
 ADF4351_TypeDef adf4351 = {0};
 
+extern uint16_t volatile vmag_val;
+
 /* Function definition -------------------------------------------------------*/
 void ADF4351_MicroDelay(uint16_t us)
 {
@@ -181,15 +183,16 @@ uint8_t ADF4351_Calc_PFD_Freq(void)
 
 uint8_t ADF4351_Set_Out_Freq(double freq)
 {
-	double vco_freq = 0.0;
+	uint64_t vco_freq = 0.0;
 	uint8_t DIV_val = 1;
 	uint8_t RF_DIV_val = 0;	// log2(DIV_val)
 	uint32_t localosc_ratio = VCO_FREQ_MIN/freq;
-	uint32_t INT_val = 0;
-	double FRAC_MOD_ratio = 0.0;
+	uint16_t INT_val = 0;
+//	double FRAC_MOD_ratio = 0.0;
 	uint16_t FRAC_val = 0;
 	uint16_t MOD_val = 0;
-	double calc_freq = 0.0;
+	uint64_t calc_freq = 0.0;
+	uint32_t gcd_val = 0;
 
 	if(ADF4351_Calc_PFD_Freq() != 0)
 	{
@@ -207,14 +210,19 @@ uint8_t ADF4351_Set_Out_Freq(double freq)
 		RF_DIV_val++  ;
 	}
 	vco_freq = DIV_val * freq;
-	INT_val = (uint32_t)(vco_freq / adf4351.pfd_freq);
+	INT_val = (uint16_t)(vco_freq / adf4351.pfd_freq);
 
-	FRAC_MOD_ratio = vco_freq / adf4351.pfd_freq - INT_val;
-	MOD_val = denominator(FRAC_MOD_ratio);
-	FRAC_val = (uint16_t)(MOD_val * (double)FRAC_MOD_ratio);
+//	FRAC_MOD_ratio = vco_freq / adf4351.pfd_freq - INT_val;
+//	MOD_val = denominator(FRAC_MOD_ratio);
+//	FRAC_val = (uint16_t)(MOD_val * (double)FRAC_MOD_ratio);
 
-	calc_freq = (double)((INT_val + ((double)FRAC_val/MOD_val))
-			* adf4351.pfd_freq)/DIV_val;
+	gcd_val = gcd(vco_freq,adf4351.pfd_freq);
+	FRAC_val = (vco_freq % adf4351.pfd_freq) / gcd_val;
+	MOD_val = adf4351.pfd_freq / gcd_val;
+
+	calc_freq = (INT_val*MOD_val+FRAC_val)*gcd_val/DIV_val;
+//	calc_freq = (double)((INT_val + ((double)FRAC_val/MOD_val))
+//			* adf4351.pfd_freq)/DIV_val;
 
 	adf4351.R0.INT = INT_val;
 	adf4351.R0.FRAC = FRAC_val;
@@ -281,19 +289,20 @@ uint8_t ADF4351_Scanning(uint32_t start, uint32_t stop, uint32_t step)
 		{
 			HAL_GPIO_TogglePin(BLUE_LED_GPIO_Port, BLUE_LED_Pin);
 			HAL_Delay(50);
-//			if ( ADF4351_Set_Out_Freq(new_freq) == 0)
-//			{
-//
-//			}
+			if ( ADF4351_Set_Out_Freq(new_freq) == 1)
+			{
+				HAL_GPIO_TogglePin(RED_LED_GPIO_Port, RED_LED_Pin);
+			}
 
-			ADF4351_Set_Out_Freq(new_freq);
+//			ADF4351_Set_Out_Freq(new_freq);
 			HAL_ADC_Start_IT(&adf4351_hadc);
+
 //			new_freq = adf4351.calc_freq + step;
 			new_freq = new_freq + step;
 			idx++;
 		}
+		return 1;
 	}
-	return 0;
 }
 
 void ADF4351_DataConvert(void)
@@ -301,10 +310,10 @@ void ADF4351_DataConvert(void)
 	HAL_ADC_Start_IT(&adf4351_hadc);
 }
 
-uint16_t gcd(unsigned int a, unsigned int b)
+uint64_t gcd(uint64_t a, uint64_t b)
 {
     while (b != 0) {
-    	unsigned int temp = b;
+    	uint64_t temp = b;
         b = a % b;
         a = temp;
     }

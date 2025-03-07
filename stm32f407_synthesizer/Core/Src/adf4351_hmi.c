@@ -8,15 +8,18 @@
 #include "adf4351_hmi.h"
 #include "adf4351.h"
 #include "stdlib.h"
+#include "stdio.h"
 
 volatile hmi_status hmi;
 
-uint16_t volatile vmag[SAMPLES+OFFSET] = {0};
+uint16_t volatile vmag[1000] = {0};
+uint16_t volatile vmag_val = 0;
+uint16_t volatile vmag_min = 65535;
 uint16_t volatile vmag_ave = 0;
 uint16_t volatile vmag_idx = 0;
 uint8_t  volatile vmag_offset = 5;
-uint16_t volatile vmag_max_val = 0;
-uint16_t volatile vmag_min_val = 0;
+uint16_t volatile vmag_upper_bound = 0;
+uint16_t volatile vmag_lower_bound = 0;
 
 uint8_t volatile y_min_val = Y_AXIS_TOP;	// top of y-axis
 uint8_t volatile y_max_val = Y_AXIS_BOT-1; // bottom of y-axis
@@ -88,6 +91,7 @@ void Welcome(void)
 	}
 	ADF4351_Initialize();
 	ADF4351_Set_Out_Freq(920000000);
+//	ADF4351_Set_Out_Freq(2400000000);
 	HAL_Delay(500);
 
 	/* Switching to next stage */
@@ -168,6 +172,93 @@ void Home(void)
 }
 
 /*
+ * @brief	Scanning RF-Freq in given range [RF-Start, RF-End]
+ * @note	RF-Start= 750 	(Mhz)
+ * 			RF-End	= 1		(Ghz)
+ * 			Step	= 500	(khz)
+ *
+ * @note	BACK-BUT	Returns to previous state
+ * 			RIGHT-BUT	N/A
+ * 			UP-BUT		N/A
+ * 			FORW-BUT	Stop plotting
+ * 			OK-BUT		Start plotting
+ */
+void Scan_RF_Out(void)
+{
+	hmi.button = NONE;
+	hmi.state_hold = TRUE;
+	hmi.while_break = TRUE;
+
+	/* Reset the index when starting plotting */
+	vmag_idx = 0;
+	vmag_ave = 0;
+
+	uint32_t start_freq	= 750000000;	// 750 Mhz
+	uint32_t end_freq	= 1000000000;	// 1 Ghz
+	uint32_t step_freq	= 500000;		// 1 MHz
+	char str_freq[201];	// Max length for uint32_t (20 digits + null terminator)
+
+	/* NOTE: there is no need for cursor operation in this stage */
+	Clear_Screen();
+
+	/* These texts in 'CHAR_HEIGHT_SMALL' format are optional */
+	/* There are maximum 3 lines are available!! - see the comments */
+	draw_string(2, 2+CHAR_HEIGHT_SMALL*0, COLOR_TEXT, 1, "------RF-SCANNING------\0");
+//	draw_string(2, 2+CHAR_HEIGHT_SMALL*1, COLOR_TEXT, 1, "   Set RF Out Freq     \0");
+//	draw_string(2, 2+CHAR_HEIGHT_SMALL*2, COLOR_TEXT, 1, "Hello-Hello\0");
+
+	/* --Plotting xy-axis--
+	 * Top of graph (x,y): (10,70)
+	 * End of graph (x,y): (210, 170)
+	 * --> Total 200 (= 210-10) samples are drawn per time.
+	*/
+	// Draw y-axis
+	for (int i = Y_AXIS_TOP; i <= Y_AXIS_BOT; i++)
+	{
+	  draw_pixel(X_AXIS_LEFT, i, COLOR_TITLE);
+	}
+	// Draw x-axis
+	for (int i = X_AXIS_LEFT; i <= X_AXIS_RIGHT; i++)
+	{
+	  draw_pixel(i, Y_AXIS_BOT, COLOR_TITLE);
+	}
+
+	while(hmi.state_hold)
+	{
+		switch(hmi.button)
+		{
+			case (BACK):
+				hmi.button = NONE;
+				hmi.curr_state = Home;
+				hmi.state_hold = FALSE;
+				break;
+
+			case (UP):
+				hmi.button = NONE;
+				break;
+
+			case (DOWN):
+				hmi.button = NONE;
+				break;
+
+			case (OK):
+				hmi.button = NONE;
+				ADF4351_Scanning(start_freq, end_freq, step_freq);
+				snprintf(str_freq, sizeof(str_freq), "%llu", adf4351.scan_freq);
+				draw_string(2, 2+CHAR_HEIGHT_SMALL*1, COLOR_TEXT, 1, str_freq);
+				break;
+
+			case (FORW):
+				hmi.button = NONE;
+				break;
+
+			default:
+				break;
+		}
+	}
+}
+
+/*
  * @brief	Plotting VMAG values in time-domain using ADC
  * 			based on the scanned frequency.
  * @note	BACK-BUT	Returns to previous state
@@ -180,6 +271,7 @@ void Plot_VMAG(void)
 {
 	hmi.button = NONE;
 	hmi.state_hold = TRUE;
+	hmi.while_break = TRUE;
 
 	/* Reset the index when starting plotting */
 	vmag_idx = 0;
@@ -190,7 +282,7 @@ void Plot_VMAG(void)
 
 	/* These texts in 'CHAR_HEIGHT_SMALL' format are optional */
 	/* There are maximum 3 lines are available!! - see the comments */
-	draw_string(2, 2+CHAR_HEIGHT_SMALL*0, COLOR_TEXT, 1, "     VMAG-PLOTTING     \0");
+	draw_string(2, 2+CHAR_HEIGHT_SMALL*0, COLOR_TEXT, 1, "-----VMAG-PLOTTING-----\0");
 //	draw_string(2, 2+CHAR_HEIGHT_SMALL*1, COLOR_TEXT, 1, "   Set RF Out Freq     \0");
 //	draw_string(2, 2+CHAR_HEIGHT_SMALL*2, COLOR_TEXT, 1, "Hello-Hello\0");
 
@@ -247,14 +339,17 @@ void Plot_VMAG(void)
 		}
 	}
 }
+
 void Set_RF_Out(void)
 {
 	// TODO
 }
-void Scan_RF_Out(void)
+
+void Set_RF_Power(void)
 {
 	// TODO
 }
+
 
 void Read_VMAG(void)
 {
@@ -286,19 +381,3 @@ void Bresenham_line_algorithm(uint8_t x1, uint8_t y1, uint8_t x2, uint8_t y2)
         steps++;
     }
 }
-
-void Set_RF_Power(void)
-{
-	// TODO
-}
-
-
-
-
-
-
-
-
-
-
-

@@ -49,12 +49,14 @@
 
 /* USER CODE BEGIN PV */
 extern volatile hmi_status hmi;
-extern uint16_t volatile vmag[SAMPLES];
+extern uint16_t volatile vmag[1000];
+extern uint16_t volatile vmag_val;
+extern uint16_t volatile vmag_min;
 extern uint16_t volatile vmag_ave;
 extern uint16_t volatile vmag_idx;
 extern uint8_t  volatile vmag_offset;
-extern uint16_t volatile vmag_max_val;
-extern uint16_t volatile vmag_min_val;
+extern uint16_t volatile vmag_upper_bound;
+extern uint16_t volatile vmag_lower_bound;
 
 extern uint8_t  volatile y_min_val;
 extern uint8_t  volatile y_max_val;
@@ -63,6 +65,8 @@ extern uint8_t  volatile y_curr_val;
 extern uint8_t  volatile x_curr_val;
 extern uint8_t  volatile y_prev_val;
 extern uint8_t  volatile x_prev_val;
+
+uint16_t idx = 0;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -127,16 +131,24 @@ void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef *hadc)
 		if(vmag_idx == SAMPLES+OFFSET)
 		{
 			vmag_idx = 0;
+			vmag_ave = 0;
 			Clear_Screen_Custom(X_AXIS_LEFT+1,Y_AXIS_TOP,X_AXIS_RIGHT,Y_AXIS_BOT-1);
 		}
 
 		/* Read VMAG values from ADC */
-		vmag[vmag_idx] = HAL_ADC_GetValue(&adf4351_hadc);
+		vmag_val = HAL_ADC_GetValue(&adf4351_hadc);
+		if( vmag_val < vmag_min)
+		{
+			vmag_min = vmag_val;
+			adf4351.scan_freq = adf4351.calc_freq;
+		}
+		vmag[idx] = vmag_val;
+		idx++;
 
 		/* The first OFFSET values to find VMAG average */
 		if(vmag_idx < OFFSET)
 		{
-			vmag_ave += vmag[vmag_idx];
+			vmag_ave += vmag_val;
 		}
 		else
 		{
@@ -144,15 +156,15 @@ void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef *hadc)
 			{
 				vmag_ave /= OFFSET;
 				y_mean_val = y_max_val-y_min_val+1;
-				vmag_max_val = y_max_val * vmag_ave / y_mean_val;
-				vmag_min_val = y_min_val * vmag_ave / y_mean_val;
+				vmag_upper_bound = y_max_val * vmag_ave / y_mean_val;
+				vmag_lower_bound = y_min_val * vmag_ave / y_mean_val;
 			}
 
 			/* Draw the pattern */
 			x_curr_val = (vmag_idx-OFFSET) + (X_AXIS_LEFT+1);
-			if(vmag[vmag_idx] > vmag_max_val) y_curr_val = y_min_val;
-			else if(vmag[vmag_idx] < vmag_min_val) y_curr_val = y_max_val;
-			else y_curr_val = (vmag[vmag_idx] * y_mean_val) / vmag_ave;
+			if(vmag_val > vmag_upper_bound) y_curr_val = y_min_val;
+			else if(vmag_val < vmag_lower_bound) y_curr_val = y_max_val;
+			else y_curr_val = (vmag_val * y_mean_val) / vmag_ave;
 
 			/* The higher y_value, the lower the y-plot */
 			y_curr_val = y_curr_val + 2*(y_mean_val-y_curr_val);
@@ -206,6 +218,14 @@ int main(void)
   lcd_init();
   HMI_Init();
   Welcome();
+
+//  ADF4351_Set_Out_Freq(862000000);
+//  ADF4351_Set_Out_Freq(2200000000);
+//  ADF4351_Set_Out_Freq(2400000000);
+//  ADF4351_Set_Out_Freq(3500000000);
+//  ADF4351_Set_Out_Freq(355000000);
+//  ADF4351_Set_Out_Freq(3552000000);
+//  ADF4351_Set_Out_Freq(4000000000);
 
   /* USER CODE END 2 */
 
