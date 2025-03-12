@@ -220,10 +220,11 @@ typedef struct
 	ADF4351_REG4_TypeDef R4;
 	ADF4351_REG5_TypeDef R5;
 	uint32_t reg[6];
-	float 	ref_freq;
-	float 	pfd_freq;
-	double	vco_freq;
-	double	calc_freq;
+	uint32_t 	ref_freq;
+	uint32_t 	pfd_freq;
+	uint32_t	vco_freq;
+	uint64_t	calc_freq;
+	uint64_t	scan_freq;
 } ADF4351_TypeDef;
 
 /* Variables -----------------------------------------------------------------*/
@@ -242,7 +243,7 @@ uint8_t ADF4351_Set_Out_Freq(double freq);
 void ADF4351_Set_RF_Power(uint8_t power);
 uint8_t ADF4351_Scanning(uint32_t start, uint32_t stop, uint32_t step);
 void ADF4351_DataConvert(void);
-uint16_t gcd(unsigned int a, unsigned int b);
+uint64_t gcd(uint64_t a, uint64_t b);
 uint16_t denominator(double number);
 uint16_t closest_power_of_2(uint16_t n);
 
