@@ -85,12 +85,13 @@ void Clear_Cursor(uint8_t pos);
 void HMI_Init(void);
 void Welcome(void);
 void Home(void);
-void Set_RF_Out(void);
 void Scan_RF_Out(void);
+void Plot_VMAG(void);
+void Set_RF_Out(void);
+void Set_RF_Power(void);
 void Read_VMAG(void);
 void Bresenham_line_algorithm(uint8_t x1, uint8_t y1, uint8_t x2, uint8_t y2);
-void Plot_VMAG(void);
-void Set_RF_Power(void);
+void num2str(uint64_t value, char *str, size_t size);
 #ifdef	__cplusplus
 }
 #endif

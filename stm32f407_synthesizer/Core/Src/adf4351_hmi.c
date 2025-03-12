@@ -9,6 +9,7 @@
 #include "adf4351.h"
 #include "stdlib.h"
 #include "stdio.h"
+#include "inttypes.h"
 
 volatile hmi_status hmi;
 
@@ -196,7 +197,8 @@ void Scan_RF_Out(void)
 	uint32_t start_freq	= 750000000;	// 750 Mhz
 	uint32_t end_freq	= 1000000000;	// 1 Ghz
 	uint32_t step_freq	= 500000;		// 1 MHz
-	char str_freq[201];	// Max length for uint32_t (20 digits + null terminator)
+	char str_freq[11];
+	char str2screen[23];
 
 	/* NOTE: there is no need for cursor operation in this stage */
 	Clear_Screen();
@@ -244,8 +246,9 @@ void Scan_RF_Out(void)
 			case (OK):
 				hmi.button = NONE;
 				ADF4351_Scanning(start_freq, end_freq, step_freq);
-				snprintf(str_freq, sizeof(str_freq), "%llu", adf4351.scan_freq);
-				draw_string(2, 2+CHAR_HEIGHT_SMALL*1, COLOR_TEXT, 1, str_freq);
+				num2str(adf4351.scan_freq, str_freq, sizeof(str_freq));
+				snprintf(str2screen, sizeof(str2screen), "freq = %s Hz", str_freq);
+				draw_string(2, 2+CHAR_HEIGHT_SMALL*1, COLOR_TEXT, 1, str2screen);
 				break;
 
 			case (FORW):
@@ -380,4 +383,32 @@ void Bresenham_line_algorithm(uint8_t x1, uint8_t y1, uint8_t x2, uint8_t y2)
 
         steps++;
     }
+}
+
+void num2str(uint64_t value, char *str, size_t size) {
+    if (size == 0) return; // Safety check
+
+    char temp[21]; // Max digits for uint64_t + null terminator
+    int i = 0;
+
+    // Special case for zero
+    if (value == 0) {
+        temp[i++] = '0';
+    } else {
+        while (value > 0 && i < (int)(sizeof(temp) - 1)) {
+            temp[i++] = '0' + (value % 10); // Extract last digit
+            value /= 10; // Remove last digit
+        }
+    }
+
+    temp[i] = '\0'; // Null-terminate
+
+    // Reverse the string into output buffer
+    int len = i;
+    if (len >= (int)size) len = (int)size - 1; // Ensure it fits
+
+    for (int j = 0; j < len; j++) {
+        str[j] = temp[len - j - 1]; // Reverse copy
+    }
+    str[len] = '\0'; // Null-terminate output
 }
