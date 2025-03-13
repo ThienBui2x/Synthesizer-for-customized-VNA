@@ -183,7 +183,7 @@ uint8_t ADF4351_Calc_PFD_Freq(void)
 
 uint8_t ADF4351_Set_Out_Freq(double freq)
 {
-	uint64_t vco_freq = 0.0;
+	uint64_t vco_freq = 0;
 	uint8_t DIV_val = 1;
 	uint8_t RF_DIV_val = 0;	// log2(DIV_val)
 	uint32_t localosc_ratio = VCO_FREQ_MIN/freq;
@@ -191,7 +191,7 @@ uint8_t ADF4351_Set_Out_Freq(double freq)
 //	double FRAC_MOD_ratio = 0.0;
 	uint16_t FRAC_val = 0;
 	uint16_t MOD_val = 0;
-	uint64_t calc_freq = 0.0;
+	uint64_t calc_freq = 0;
 	uint32_t gcd_val = 0;
 
 	if(ADF4351_Calc_PFD_Freq() != 0)
@@ -277,13 +277,13 @@ void ADF4351_Set_RF_Power(uint8_t power)
 	adf4351.R4.OUT_POW = power;
 }
 
-uint8_t ADF4351_Scanning(uint32_t start, uint32_t stop, uint32_t step)
+uint8_t ADF4351_Scanning(uint64_t start, uint64_t stop, uint64_t step)
 {
 	// wrong scanning period
 	if (stop <= start) return 1;
 	else
 	{
-		uint32_t new_freq = start;
+		uint64_t new_freq = start;
 		uint16_t idx = 0;
 		while(new_freq < stop)
 		{

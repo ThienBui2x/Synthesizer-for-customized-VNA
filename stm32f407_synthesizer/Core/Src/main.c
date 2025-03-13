@@ -82,42 +82,45 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
   /* Prevent unused argument(s) compilation warning */
   UNUSED(GPIO_Pin);
 
-  if(GPIO_Pin == BACK_BUT_Pin)
+  if(hmi.button == NONE)
   {
-	  hmi.button = BACK;
-
-	  if(hmi.curr_state == Plot_VMAG)
+	  if(GPIO_Pin == BACK_BUT_Pin)
 	  {
-		  /* Make sure the plotting is stopped before exiting the stage */
-		  if (hmi.while_break == FALSE) hmi.while_break = TRUE;
+		  hmi.button = BACK;
+
+		  if(hmi.curr_state == Plot_VMAG)
+		  {
+			  /* Make sure the plotting is stopped before exiting the stage */
+			  if (hmi.while_break == FALSE) hmi.while_break = TRUE;
+		  }
 	  }
-  }
 
-  if (GPIO_Pin == UP_BUT_Pin)
-  {
-	  hmi.button = UP;
-  }
-
-  if (GPIO_Pin == DOWN_BUT_Pin)
-  {
-	  hmi.button = DOWN;
-  }
-
-  if (GPIO_Pin == OK_BUT_Pin)
-  {
-	  hmi.button = OK;
-
-	  if(hmi.curr_state == Plot_VMAG)
+	  if (GPIO_Pin == UP_BUT_Pin)
 	  {
-		  /* Toggle to Start/Stop plotting */
-		  if (hmi.while_break == TRUE) hmi.while_break = FALSE;
-		  else hmi.while_break = TRUE;
+		  hmi.button = UP;
 	  }
-  }
 
-  if (GPIO_Pin == FORW_BUT_Pin)
-  {
-	  hmi.button = FORW;
+	  if (GPIO_Pin == DOWN_BUT_Pin)
+	  {
+		  hmi.button = DOWN;
+	  }
+
+	  if (GPIO_Pin == OK_BUT_Pin)
+	  {
+		  hmi.button = OK;
+
+		  if(hmi.curr_state == Plot_VMAG)
+		  {
+			  /* Toggle to Start/Stop plotting */
+			  if (hmi.while_break == TRUE) hmi.while_break = FALSE;
+			  else hmi.while_break = TRUE;
+		  }
+	  }
+
+	  if (GPIO_Pin == FORW_BUT_Pin)
+	  {
+		  hmi.button = FORW;
+	  }
   }
 }
 
