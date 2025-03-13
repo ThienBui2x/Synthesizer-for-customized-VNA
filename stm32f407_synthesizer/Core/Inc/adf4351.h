@@ -224,6 +224,9 @@ typedef struct
 	uint32_t 	pfd_freq;
 	uint32_t	vco_freq;
 	uint64_t	calc_freq;
+	uint64_t	start_freq;
+	uint64_t	stop_freq;
+	uint64_t	step_freq;
 	uint64_t	scan_freq;
 } ADF4351_TypeDef;
 
@@ -241,7 +244,7 @@ void ADF4351_Registers_Update(void);
 uint8_t ADF4351_Calc_PFD_Freq(void);
 uint8_t ADF4351_Set_Out_Freq(double freq);
 void ADF4351_Set_RF_Power(uint8_t power);
-uint8_t ADF4351_Scanning(uint32_t start, uint32_t stop, uint32_t step);
+uint8_t ADF4351_Scanning(uint64_t start, uint64_t stop, uint64_t step);
 void ADF4351_DataConvert(void);
 uint64_t gcd(uint64_t a, uint64_t b);
 uint16_t denominator(double number);

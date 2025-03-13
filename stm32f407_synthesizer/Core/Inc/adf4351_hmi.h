@@ -17,6 +17,7 @@ extern "C" {
 #define COLOR_BG			COLOR_BLACK
 #define COLOR_TITLE			COLOR_GOLD
 #define COLOR_TEXT			COLOR_BLUE
+#define COLOR_TEXT1			COLOR_GREEN
 #define COLOR_SYMBOL		COLOR_ORANGE
 #define COLOR_NUM			COLOR_LIGHTGREEN
 #define COLOR_ERROR			COLOR_RED
@@ -55,6 +56,13 @@ extern "C" {
 #define Y_AXIS_BOT		170
 #define SAMPLES			X_AXIS_RIGHT - X_AXIS_LEFT
 #define OFFSET			5
+
+/* RF OUT STAGE MACROs */
+#define CURSOR_OFFSET 3
+#define SUBTEXT_OFFSET 10
+#define START_FREQ	1
+#define STOP_FREQ	2
+#define STEP_FREQ	3
 
 typedef enum
 {

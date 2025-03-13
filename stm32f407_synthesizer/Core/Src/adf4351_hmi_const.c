@@ -30,7 +30,36 @@ char home[6][24] =
 	"   Read VMag data      \0",
 	"   Plot VMag data      \0",
 	"   Set RF Out Power    \0"
+};
 
+char set_rf_out[4][24] =
+{
+	"-----Set RF Range------\0",
+	"   StartFreq           \0",
+	"   StopFreq            \0",
+	"   StepFreq            \0"
+};
+
+char set_rf_out1[4][11] =
+{
+	"          \0",
+	"StartFreq \0",
+	"StopFreq  \0",
+	"StepFreq  \0"
+};
+
+char num[10][2] =
+{
+	"0\0",
+	"1\0",
+	"2\0",
+	"3\0",
+	"4\0",
+	"5\0",
+	"6\0",
+	"7\0",
+	"8\0",
+	"9\0"
 };
 
 void (*home_func_ptr[5])(void) =
