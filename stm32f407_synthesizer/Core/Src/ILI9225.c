@@ -492,7 +492,7 @@ void draw_fast_char(char x, char y, char c, unsigned int colour, unsigned int bg
 
 /*
  * Writes a string to the display as an array of chars at position x, y with 
- * a given colour and size.
+ * a given color and size.
  */
 void draw_string(char x, char y, unsigned int colour, char size, char *str) {
     

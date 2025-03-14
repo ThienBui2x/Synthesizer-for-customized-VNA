@@ -14,6 +14,7 @@ extern "C" {
 
 #include "ILI9225.h"
 
+/* COLOR MACROs */
 #define COLOR_BG			COLOR_BLACK
 #define COLOR_TITLE			COLOR_GOLD
 #define COLOR_TEXT			COLOR_BLUE
@@ -23,9 +24,9 @@ extern "C" {
 #define COLOR_ERROR			COLOR_RED
 #define COLOR_WARNING		COLOR_YELLOW
 
+/* LCD PARAMETERs */
 #define LCD_WIDTH			WIDTH
 #define LCD_HEIGHT			HEIGHT
-
 #define ROW_OFFSET			2
 #define COL_OFFSET			2
 #define MAX_CHARS_SMALL		24
@@ -37,6 +38,7 @@ extern "C" {
 #define MAX_LINES_SMALL		((HEIGHT-COL_OFFSET*2)/CHAR_HEIGHT_SMALL)+1
 #define MAX_LINES_LARGE		((HEIGHT-COL_OFFSET*2)/CHAR_HEIGHT_LARGE)+1
 
+/* Cursor position */
 #define LINE0	0
 #define LINE1	1
 #define LINE2	2
@@ -50,6 +52,10 @@ extern "C" {
 #define TRUE	1
 #define FALSE	0
 
+#define DISPLAY_TIME	500
+#define DEBOUNCE_TIME	200
+
+/* X-Y AXIS */
 #define X_AXIS_LEFT		10
 #define X_AXIS_RIGHT	210
 #define	Y_AXIS_TOP		70
@@ -86,20 +92,20 @@ typedef struct
 	uint8_t			while_break;
 } hmi_status;
 
-void Clear_Screen(void);
-void Clear_Screen_Custom(uint8_t x_s, uint8_t y_s, uint8_t x_e, uint8_t y_e);
-void Set_Cursor(uint8_t pos);
-void Clear_Cursor(uint8_t pos);
+/* Function Declaration */
 void HMI_Init(void);
 void Welcome(void);
 void Home(void);
 void Scan_RF_Out(void);
 void Plot_VMAG(void);
 void Set_RF_Out(void);
-void Set_RF_Power(void);
-void Read_VMAG(void);
+void Clear_Screen(void);
+void Clear_Screen_Custom(uint8_t x_s, uint8_t y_s, uint8_t x_e, uint8_t y_e);
+void Set_Cursor(uint8_t pos);
+void Clear_Cursor(uint8_t pos);
 void Bresenham_line_algorithm(uint8_t x1, uint8_t y1, uint8_t x2, uint8_t y2);
 void num2str(uint64_t value, char *str, size_t size);
+void num2str_10digits(uint64_t value, char *str, size_t size);
 #ifdef	__cplusplus
 }
 #endif
