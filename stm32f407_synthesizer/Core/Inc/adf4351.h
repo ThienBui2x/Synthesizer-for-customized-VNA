@@ -21,12 +21,13 @@ extern "C" {
 #define adf4351_hspi hspi1
 #define adf4351_hadc hadc1
 
-#define REF_FREQ_VAL	25000000.0		// 25Mhz Crystal Oscillator
-#define REF_FREQ_ERR	500.0			// Adjust to Ref Freq Error
-#define VCO_FREQ_MIN	2200000000.0	// 2.2 Ghz
-#define VCO_FREQ_MAX	4400000000.0	// 4.4 Ghz -> use 64-bits
-#define OUT_FREQ_MIN	VCO_FREQ_MIN / 64	// ~34 Mhz
+#define REF_FREQ_VAL	25000000.0			/* 25Mhz Crystal Oscillator */
+#define REF_FREQ_ERR	500.0				/* Adjust to Ref Freq Error */
+#define VCO_FREQ_MIN	2200000000.0		/* 2.2 Ghz */
+#define VCO_FREQ_MAX	4400000000.0		/* 4.4 Ghz -> use 64-bits */
+#define OUT_FREQ_MIN	VCO_FREQ_MIN / 64	/* ~35 Mhz */
 #define OUT_FREQ_MAX	VCO_FREQ_MAX
+#define DEFAULT_FREQ	923000000
 
 #define ADF4351_REG0_CTRL_BIT			0x00000000
 #define ADF4351_REG1_CTRL_BIT			0x00000001
@@ -39,8 +40,8 @@ extern "C" {
 #define PHASE_ADJ_OFF					0
 #define PHASE_ADJ_ON					1
 
-#define PRESCALER_4_5					0	// Pre-scaler = 4/5
-#define PRESCALER_8_9					1	// Pre-scaler = 8/9
+#define PRESCALER_4_5					0	/* Pre-scaler = 4/5 */
+#define PRESCALER_8_9					1	/* Pre-scaler = 8/9 */
 
 /* Register 2 */
 #define LOW_NOISE_MODE					0
@@ -63,7 +64,7 @@ extern "C" {
 #define DOUBLE_BUFFER_DISABLED			0
 #define DOUBLE_BUFFER_ENABLED			1
 
-#define CHARGE_PUMP_CURRENT_0_31		0	// I(CP) (mA) - 5.1 kOhm
+#define CHARGE_PUMP_CURRENT_0_31		0	/* I(CP) (mA) - 5.1 kOhm */
 #define CHARGE_PUMP_CURRENT_0_63		1
 #define CHARGE_PUMP_CURRENT_0_94		2
 #define CHARGE_PUMP_CURRENT_1_25		3
@@ -102,8 +103,8 @@ extern "C" {
 #define BAND_SEL_CLK_MODE_LOW			0
 #define BAND_SEL_CLK_MODE_HIGH			1
 
-#define ANTIBACKLASH_PULSE_WIDTH_6ns 	0	// FRAC-N
-#define ANTIBACKLASH_PULSE_WIDTH_3ns 	1	// INT-N
+#define ANTIBACKLASH_PULSE_WIDTH_6ns 	0	/* FRAC-N */
+#define ANTIBACKLASH_PULSE_WIDTH_3ns 	1	/* INT-N */
 
 #define CHARGE_CANCELATION_DISABLED		0
 #define CHARGE_CANCELATION_ENABLED		1
@@ -152,63 +153,63 @@ extern "C" {
 
 typedef struct
 {
-	__IO uint16_t FRAC;			// Fractional Value 	Bits[3:14]
-	__IO uint16_t INT;			// Integer Value		Bits[15:30]
+	__IO uint16_t FRAC;			/* Fractional Value 	Bits[3:14] 	*/
+	__IO uint16_t INT;			/* Integer Value		Bits[15:30] */
 } ADF4351_REG0_TypeDef;
 
 typedef struct
 {
-	__IO uint16_t MOD;			// Modulus Value		Bits[3:14]
-	__IO uint16_t PHASE;		// Phase Value			Bits[15:26]
-	__IO uint8_t  PRESCALER;	// Pre-scaler Bit 		Bits[27]
-	__IO uint8_t  PHASE_ADJUST; // Phase Adjust Bit		Bits[28]
+	__IO uint16_t MOD;			/* Modulus Value		Bits[3:14]	*/
+	__IO uint16_t PHASE;		/* Phase Value			Bits[15:26] */
+	__IO uint8_t  PRESCALER;	/* Pre-scaler Bit 		Bits[27]	*/
+	__IO uint8_t  PHASE_ADJUST; /* Phase Adjust Bit		Bits[28]	*/
 } ADF4351_REG1_TypeDef;
 
 typedef struct
 {
-	__IO uint8_t  COUNTER_RST;	// Counter Reset Bit	Bits[3]
-	__IO uint8_t  THREE_STATE;	// CP Three State Bit	Bits[4]
-	__IO uint8_t  POW_DOWN;		// Power Down Bit		Bits[5]
-	__IO uint8_t  PD_POLAR;		// PD Polarity Bit		Bits[6]
-	__IO uint8_t  LDP;			// LDP					Bits[7]
-	__IO uint8_t  LDF;			// LDF					Bits[8]
-	__IO uint8_t  CHARGE_PUMP;	// Charge Pump Setting  Bits[9:12]
-	__IO uint8_t  DOUBLE_BUF;	// Double Buffer Bit	Bits[13]
-	__IO uint16_t R_COUNTER;	// R Counter 			Bits[14:23]
-	__IO uint8_t  RDIV2;		// RDIV2 Bit			Bits[24]
-	__IO uint8_t  REF_DOUBLER;	// Reference Doubler	Bits[25]
-	__IO uint8_t  MUXOUT;		// MUXOUT				Bits[26:28]
-	__IO uint8_t  LN_LS_MODES;	// Low Noise - Low Spur Bits[29:30]
+	__IO uint8_t  COUNTER_RST;	/* Counter Reset Bit	Bits[3]		*/
+	__IO uint8_t  THREE_STATE;	/* CP Three State Bit	Bits[4]		*/
+	__IO uint8_t  POW_DOWN;		/* Power Down Bit		Bits[5]		*/
+	__IO uint8_t  PD_POLAR;		/* PD Polarity Bit		Bits[6]		*/
+	__IO uint8_t  LDP;			/* LDP					Bits[7]		*/
+	__IO uint8_t  LDF;			/* LDF					Bits[8]		*/
+	__IO uint8_t  CHARGE_PUMP;	/* Charge Pump Setting  Bits[9:12]	*/
+	__IO uint8_t  DOUBLE_BUF;	/* Double Buffer Bit	Bits[13]	*/
+	__IO uint16_t R_COUNTER;	/* R Counter 			Bits[14:23]	*/
+	__IO uint8_t  RDIV2;		/* RDIV2 Bit			Bits[24]	*/
+	__IO uint8_t  REF_DOUBLER;	/* Reference Doubler	Bits[25]	*/
+	__IO uint8_t  MUXOUT;		/* MUXOUT				Bits[26:28]	*/
+	__IO uint8_t  LN_LS_MODES;	/* Low Noise - Low Spur Bits[29:30]	*/
 } ADF4351_REG2_TypeDef;
 
 typedef struct
 {
-	__IO uint16_t CLK_DIV;		// Clock Divider Value	Bits[3:14]
-	__IO uint8_t  CLK_DIV_MODE;	// Clock Divider Mode	Bits[15:16]
-	__IO uint8_t  CSR;			// CSR Bit				Bits[18]
-	__IO uint8_t  CHARGE_CANCEL;// Charge Cancel Bit	Bits[21]
-	__IO uint8_t  ABP;			// ABP Bit				Bits[22]
-	__IO uint8_t  SEL_CLK_MODE;	// Band Select Clock	Bits[23]
+	__IO uint16_t CLK_DIV;		/* Clock Divider Value	Bits[3:14]	*/
+	__IO uint8_t  CLK_DIV_MODE;	/* Clock Divider Mode	Bits[15:16]	*/
+	__IO uint8_t  CSR;			/* CSR Bit				Bits[18]	*/
+	__IO uint8_t  CHARGE_CANCEL;/* Charge Cancel Bit	Bits[21]	*/
+	__IO uint8_t  ABP;			/* ABP Bit				Bits[22]	*/
+	__IO uint8_t  SEL_CLK_MODE;	/* Band Select Clock	Bits[23]	*/
 } ADF4351_REG3_TypeDef;
 
 typedef struct
 {
-	__IO uint8_t  OUT_POW;		// Output Power			Bits[3:4]
-	__IO uint8_t  RF_OUT_EN;	// RF Output Enable Bit	Bits[5]
-	__IO uint8_t  AUX_OUT_POW;	// Aux Output Power     Bits[6:7]
-	__IO uint8_t  AUX_OUT_EN;	// Aux Output Enable 	Bits[8]
-	__IO uint8_t  AUX_OUT_SEL;	// Aux Output Select	Bits[9]
-	__IO uint8_t  MTLD;			// MTLD Bit				Bits[10]
-	__IO uint8_t  VCO_POW_DOWN;	// VCO Power Down		Bits[11]
-	__IO uint8_t  SEL_CLK_DIV;	// Band Select Clk Div	Bits[12:19]
-	__IO uint8_t  RF_DIV_SEL;	// RF Divider Select	Bits[20:22]
-	__IO uint8_t  FEEDBACK_SEL; // Feedback Select		Bits[23]
+	__IO uint8_t  OUT_POW;		/* Output Power			Bits[3:4]	*/
+	__IO uint8_t  RF_OUT_EN;	/* RF Output Enable Bit	Bits[5]		*/
+	__IO uint8_t  AUX_OUT_POW;	/* Aux Output Power     Bits[6:7]	*/
+	__IO uint8_t  AUX_OUT_EN;	/* Aux Output Enable 	Bits[8]		*/
+	__IO uint8_t  AUX_OUT_SEL;	/* Aux Output Select	Bits[9]		*/
+	__IO uint8_t  MTLD;			/* MTLD Bit				Bits[10]	*/
+	__IO uint8_t  VCO_POW_DOWN;	/* VCO Power Down		Bits[11]	*/
+	__IO uint8_t  SEL_CLK_DIV;	/* Band Select Clk Div	Bits[12:19]	*/
+	__IO uint8_t  RF_DIV_SEL;	/* RF Divider Select	Bits[20:22]	*/
+	__IO uint8_t  FEEDBACK_SEL; /* Feedback Select		Bits[23]	*/
 } ADF4351_REG4_TypeDef;
 
 typedef struct
 {
-	__IO uint8_t RESERVED_HIGH;	// Reserved High bits	Bits[19:20]
-	__IO uint8_t LD_PIN_MODE;	// LD Pin Mode 			Bits[22:23]
+	__IO uint8_t RESERVED_HIGH;	/* Reserved High bits	Bits[19:20]	*/
+	__IO uint8_t LD_PIN_MODE;	/* LD Pin Mode 			Bits[22:23]	*/
 } ADF4351_REG5_TypeDef;
 
 typedef struct
@@ -247,8 +248,6 @@ void ADF4351_Set_RF_Power(uint8_t power);
 uint8_t ADF4351_Scanning(uint64_t start, uint64_t stop, uint64_t step);
 void ADF4351_DataConvert(void);
 uint64_t gcd(uint64_t a, uint64_t b);
-uint16_t denominator(double number);
-uint16_t closest_power_of_2(uint16_t n);
 
 #ifdef __cplusplus
 }

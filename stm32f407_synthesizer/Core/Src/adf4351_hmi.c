@@ -5,12 +5,15 @@
  *      Author: ADM
  */
 
+/* Includes ------------------------------------------------------------------*/
 #include "adf4351_hmi.h"
 #include "adf4351.h"
 #include "stdlib.h"
 #include "stdio.h"
 #include "inttypes.h"
+#include "string.h"
 
+/* Variables -----------------------------------------------------------------*/
 volatile hmi_status hmi;
 
 uint16_t volatile vmag[1000] = {0};
@@ -22,45 +25,31 @@ uint8_t  volatile vmag_offset = 5;
 uint16_t volatile vmag_upper_bound = 0;
 uint16_t volatile vmag_lower_bound = 0;
 
-uint8_t volatile y_min_val = Y_AXIS_TOP;	// top of y-axis
-uint8_t volatile y_max_val = Y_AXIS_BOT-1; // bottom of y-axis
+uint8_t volatile y_min_val = Y_AXIS_TOP;	/* top of y-axis 	*/
+uint8_t volatile y_max_val = Y_AXIS_BOT-1;  /* bottom of y-axis */
 uint8_t volatile y_mean_val = 0;
 uint8_t volatile y_curr_val = 0;
 uint8_t volatile x_curr_val = 0;
 uint8_t volatile y_prev_val = 0;
 uint8_t volatile x_prev_val = 0;
 
+uint8_t is_default = TRUE;
+
 extern char cursor[2];
 extern char welcome[3][12];
 extern char initialize[2][12];
-extern char home[6][24];
+extern char home[4][24];
 extern char set_rf_out[4][24];
 extern char set_rf_out1[4][11];
 extern char num[10][2];
 
-extern void (*home_func_ptr[5])(void);
+extern void (*home_func_ptr[3])(void);
 
-void Clear_Screen(void)
-{
-	fill_rectangle(0, 0, WIDTH, HEIGHT, COLOR_BG);
-}
+/* Function definition -------------------------------------------------------*/
 
-void Clear_Screen_Custom(uint8_t x_s, uint8_t y_s, uint8_t x_e, uint8_t y_e)
-{
-	fill_rectangle(x_s, y_s, x_e, y_e, COLOR_BG);
-}
-
-void Set_Cursor(uint8_t pos)
-{
-	hmi.cur_pos = pos;
-	draw_string(ROW_OFFSET, COL_OFFSET+CHAR_HEIGHT_SMALL*pos, COLOR_SYMBOL, 1, cursor);
-}
-
-void Clear_Cursor(uint8_t pos)
-{
-	draw_string(ROW_OFFSET, COL_OFFSET+CHAR_HEIGHT_SMALL*pos, COLOR_BG, 1, cursor);
-}
-
+/*
+ * @brief	Initialization of LCD Display
+ */
 void HMI_Init(void)
 {
 	Clear_Screen();
@@ -74,29 +63,33 @@ void HMI_Init(void)
 	hmi.while_break = TRUE;
 }
 
+/*
+ * @brief	Welcome and Initialization of ADF4351 Synthesiszer
+ */
 void Welcome(void)
 {
 	/* Welcome screen */
-	uint8_t col_off = COL_OFFSET + 20;
+	uint8_t row_off = ROW_OFFSET + 20;
 	uint8_t rows = sizeof(welcome) / sizeof(welcome[0]);
+
+	/* NOTE: there is no need for cursor operation in this stage */
 	Clear_Screen();
 	for(int idx = 0; idx < rows; idx++)
 	{
-		draw_string(ROW_OFFSET, col_off+CHAR_HEIGHT_LARGE*idx, COLOR_TITLE, 2, welcome[idx]);
+		draw_string(COL_OFFSET, row_off+CHAR_HEIGHT_LARGE*idx, COLOR_TITLE, 2, welcome[idx]);
 	}
-	HAL_Delay(1000);
+	HAL_Delay(DISPLAY_TIME);
 
 	/* ADF4351 Initialization */
 	rows = sizeof(initialize) / sizeof(initialize[0]);
 	Clear_Screen();
 	for(int idx = 0; idx < rows; idx++)
 	{
-		draw_string(ROW_OFFSET, col_off+CHAR_HEIGHT_LARGE*idx, COLOR_TITLE, 2, initialize[idx]);
+		draw_string(COL_OFFSET, row_off+CHAR_HEIGHT_LARGE*idx, COLOR_TITLE, 2, initialize[idx]);
 	}
 	ADF4351_Initialize();
-	ADF4351_Set_Out_Freq(920000000);
-//	ADF4351_Set_Out_Freq(2400000000);
-	HAL_Delay(500);
+	ADF4351_Set_Out_Freq(DEFAULT_FREQ);	/* Default RF_Out_Freq */
+	HAL_Delay(DISPLAY_TIME);
 
 	/* Switching to next stage */
 	hmi.curr_state = Home;
@@ -106,11 +99,9 @@ void Welcome(void)
 /*
  * @brief	Main menu for RF Synthesizer
  * 			Current/Up-comming stages:
- * 				- Set_RF_Out	- TODO
- * 				- Scan_RF_Out	- TODO
- * 				- Read_VMAG		- TODO
- * 				- Plot_VMAG		- DONE
- * 				- Set_RF_Power	- TODO
+ * 				- Set_RF_Out
+ * 				- Scan_RF_Out
+ * 				- Plot_VMAG
  * @note	BACK-BUT	N/A
  * 			RIGHT-BUT	N/A
  * 			UP-BUT		Move cursor up
@@ -119,13 +110,14 @@ void Welcome(void)
  */
 void Home(void)
 {
+	HAL_Delay(DEBOUNCE_TIME);
 	hmi.button = NONE;
 	hmi.state_hold = TRUE;
 	uint8_t rows = sizeof(home) / sizeof(home[0]);
 	Clear_Screen();
 	Set_Cursor(LINE1);
 	hmi.cur_start = hmi.cur_pos;
-	hmi.cur_end = rows-1;	// Skip the first line
+	hmi.cur_end = rows-1;	/* Skip the first line */
 	for(int idx = 0; idx < rows; idx++)
 	{
 		draw_string(ROW_OFFSET, COL_OFFSET+CHAR_HEIGHT_SMALL*idx, COLOR_TEXT, 1, home[idx]);
@@ -136,10 +128,12 @@ void Home(void)
 		switch(hmi.button)
 		{
 			case (BACK):
+				HAL_Delay(DEBOUNCE_TIME);
 				hmi.button = NONE;
 				break;
 
 			case (UP):
+				HAL_Delay(DEBOUNCE_TIME);
 				hmi.button = NONE;
 				if(hmi.cur_pos > hmi.cur_start)
 				{
@@ -150,6 +144,7 @@ void Home(void)
 				break;
 
 			case (DOWN):
+				HAL_Delay(DEBOUNCE_TIME);
 				hmi.button = NONE;
 				if(hmi.cur_pos < hmi.cur_end)
 				{
@@ -160,13 +155,14 @@ void Home(void)
 				break;
 
 			case (OK):
-				HAL_Delay(200);
+				HAL_Delay(DEBOUNCE_TIME);
 				hmi.button = NONE;
 				hmi.curr_state = home_func_ptr[hmi.cur_pos-1];
 				hmi.state_hold = FALSE;
 				break;
 
 			case (FORW):
+				HAL_Delay(DEBOUNCE_TIME);
 				hmi.button = NONE;
 				break;
 
@@ -197,7 +193,7 @@ void Home(void)
  */
 void Set_RF_Out(void)
 {
-	HAL_Delay(200);
+	HAL_Delay(DEBOUNCE_TIME);
 	hmi.button = NONE;
 	hmi.state_hold = TRUE;
 
@@ -205,30 +201,36 @@ void Set_RF_Out(void)
 	uint8_t is_selected = FALSE; /* state-var to lock the selected line */
 	uint8_t val_pos = 0;	/* Range [0..9] */
 	uint8_t digit = 0;
+	char rf_val[3][11];
 
-	/* Default values for freq parameters */
-	char rf_val[3][11] =
+	if(is_default == TRUE)	/* Default values for freq parameters (ONLY 1 time) */
 	{
-		"0000035000\0",
-		"4400000000\0",
-		"0000050000\0"
-	};
+		is_default = FALSE;
+		strcpy(rf_val[START_FREQ-1],"0000035000\0");
+		strcpy(rf_val[STOP_FREQ-1],"4400000000\0");
+		strcpy(rf_val[STEP_FREQ-1],"0000050000\0");
+	}
+	else	/* Used the freq values from previous selection */
+	{
+		num2str_10digits(adf4351.start_freq, rf_val[START_FREQ-1], sizeof(rf_val[START_FREQ-1]));
+		num2str_10digits(adf4351.stop_freq, rf_val[STOP_FREQ-1], sizeof(rf_val[STOP_FREQ-1]));
+		num2str_10digits(adf4351.step_freq, rf_val[STEP_FREQ-1], sizeof(rf_val[STEP_FREQ-1]));
+	}
 
 	Clear_Screen();
 	Set_Cursor(LINE1);
 	hmi.cur_start = hmi.cur_pos;
-	hmi.cur_end = rows-1;	// Skip the first line
+	hmi.cur_end = rows-1;	/* Skip the first line */
 	for(int idx = 0; idx < rows; idx++)
 	{
 		draw_string(ROW_OFFSET, COL_OFFSET+CHAR_HEIGHT_SMALL*idx, COLOR_TEXT, 1, set_rf_out[idx]);
 	}
 
-	draw_string(COL_OFFSET+CHAR_WIDTH_SMALL*(CURSOR_OFFSET+SUBTEXT_OFFSET),
-			ROW_OFFSET+CHAR_HEIGHT_SMALL*START_FREQ, COLOR_TEXT, 1, rf_val[START_FREQ-1]);
-	draw_string(COL_OFFSET+CHAR_WIDTH_SMALL*(CURSOR_OFFSET+SUBTEXT_OFFSET),
-			ROW_OFFSET+CHAR_HEIGHT_SMALL*STOP_FREQ, COLOR_TEXT, 1, rf_val[STOP_FREQ-1]);
-	draw_string(COL_OFFSET+CHAR_WIDTH_SMALL*(CURSOR_OFFSET+SUBTEXT_OFFSET),
-			ROW_OFFSET+CHAR_HEIGHT_SMALL*STEP_FREQ, COLOR_TEXT, 1, rf_val[STEP_FREQ-1]);
+	for(int idx = START_FREQ; idx <= STEP_FREQ; idx++)
+	{
+		draw_string(COL_OFFSET+CHAR_WIDTH_SMALL*(CURSOR_OFFSET+SUBTEXT_OFFSET),
+				ROW_OFFSET+CHAR_HEIGHT_SMALL*idx, COLOR_TEXT, 1, rf_val[idx-1]);
+	}
 
 	while(hmi.state_hold)
 	{
@@ -428,19 +430,15 @@ void Set_RF_Out(void)
  */
 void Scan_RF_Out(void)
 {
+	HAL_Delay(DEBOUNCE_TIME);
 	hmi.button = NONE;
 	hmi.state_hold = TRUE;
-//	hmi.while_break = TRUE;
 
 	/* Reset the index when starting plotting */
 	vmag_idx = 0;
 	vmag_ave = 0;
 
-//	uint32_t start_freq	= 750000000;	// 750 Mhz
-//	uint32_t end_freq	= 1000000000;	// 1 Ghz
-//	uint32_t step_freq	= 500000;		// 1 MHz
-
-	char str_freq[11];
+	char str_freq[11] = "\0";
 	char str2screen[23];
 
 	/* NOTE: there is no need for cursor operation in this stage */
@@ -448,21 +446,21 @@ void Scan_RF_Out(void)
 
 	/* These texts in 'CHAR_HEIGHT_SMALL' format are optional */
 	/* There are maximum 3 lines are available!! - see the comments */
-	draw_string(2, 2+CHAR_HEIGHT_SMALL*0, COLOR_TEXT, 1, "------RF-SCANNING------\0");
-//	draw_string(2, 2+CHAR_HEIGHT_SMALL*1, COLOR_TEXT, 1, "   Set RF Out Freq     \0");
-//	draw_string(2, 2+CHAR_HEIGHT_SMALL*2, COLOR_TEXT, 1, "Hello-Hello\0");
+	draw_string(COL_OFFSET, ROW_OFFSET+CHAR_HEIGHT_SMALL*LINE0, COLOR_TEXT, 1, "------RF-SCANNING------\0");
+//	draw_string(COL_OFFSET, ROW_OFFSET+CHAR_HEIGHT_SMALL*LINE1, COLOR_TEXT, 1, "   Set RF Out Freq     \0");
+//	draw_string(COL_OFFSET, ROW_OFFSET+CHAR_HEIGHT_SMALL*LINE2, COLOR_TEXT, 1, "Hello-Hello\0");
 
 	/* --Plotting xy-axis--
 	 * Top of graph (x,y): (10,70)
 	 * End of graph (x,y): (210, 170)
 	 * --> Total 200 (= 210-10) samples are drawn per time.
 	*/
-	// Draw y-axis
+	/* Draw y-axis */
 	for (int i = Y_AXIS_TOP; i <= Y_AXIS_BOT; i++)
 	{
 	  draw_pixel(X_AXIS_LEFT, i, COLOR_TITLE);
 	}
-	// Draw x-axis
+	/* Draw x-axis */
 	for (int i = X_AXIS_LEFT; i <= X_AXIS_RIGHT; i++)
 	{
 	  draw_pixel(i, Y_AXIS_BOT, COLOR_TITLE);
@@ -473,32 +471,45 @@ void Scan_RF_Out(void)
 		switch(hmi.button)
 		{
 			case (BACK):
+				HAL_Delay(DEBOUNCE_TIME);
 				hmi.button = NONE;
 				hmi.curr_state = Home;
 				hmi.state_hold = FALSE;
 				break;
 
 			case (UP):
+				HAL_Delay(DEBOUNCE_TIME);
 				hmi.button = NONE;
 				break;
 
 			case (DOWN):
+				HAL_Delay(DEBOUNCE_TIME);
 				hmi.button = NONE;
 				break;
 
 			case (OK):
+				HAL_Delay(DEBOUNCE_TIME);
 				hmi.button = NONE;
-//				ADF4351_Scanning(start_freq, end_freq, step_freq);
 				ADF4351_Scanning(adf4351.start_freq,
 								 adf4351.stop_freq,
 								 adf4351.step_freq);
 				ADF4351_Set_Out_Freq(adf4351.scan_freq);
+				if(str_freq[0] != '\0')
+				{
+					/* Reset the screen condition */
+					vmag_idx = SAMPLES+OFFSET;
+
+					/* Clear the old scan freq before new measurement */
+					snprintf(str2screen, sizeof(str2screen), "freq = %s Hz", str_freq);
+					draw_string(COL_OFFSET, ROW_OFFSET+CHAR_HEIGHT_SMALL*LINE1, COLOR_BG, 1, str2screen);
+				}
 				num2str(adf4351.scan_freq, str_freq, sizeof(str_freq));
 				snprintf(str2screen, sizeof(str2screen), "freq = %s Hz", str_freq);
-				draw_string(2, 2+CHAR_HEIGHT_SMALL*1, COLOR_TEXT, 1, str2screen);
+				draw_string(COL_OFFSET, ROW_OFFSET+CHAR_HEIGHT_SMALL*LINE1, COLOR_TEXT, 1, str2screen);
 				break;
 
 			case (FORW):
+				HAL_Delay(DEBOUNCE_TIME);
 				hmi.button = NONE;
 				break;
 
@@ -519,8 +530,11 @@ void Scan_RF_Out(void)
  */
 void Plot_VMAG(void)
 {
+	HAL_Delay(DEBOUNCE_TIME);
 	hmi.button = NONE;
 	hmi.state_hold = TRUE;
+
+	/* Initialize when there is 'while' loop in the switch case */
 	hmi.while_break = TRUE;
 
 	/* Reset the index when starting plotting */
@@ -532,21 +546,21 @@ void Plot_VMAG(void)
 
 	/* These texts in 'CHAR_HEIGHT_SMALL' format are optional */
 	/* There are maximum 3 lines are available!! - see the comments */
-	draw_string(2, 2+CHAR_HEIGHT_SMALL*0, COLOR_TEXT, 1, "-----VMAG-PLOTTING-----\0");
-//	draw_string(2, 2+CHAR_HEIGHT_SMALL*1, COLOR_TEXT, 1, "   Set RF Out Freq     \0");
-//	draw_string(2, 2+CHAR_HEIGHT_SMALL*2, COLOR_TEXT, 1, "Hello-Hello\0");
+	draw_string(COL_OFFSET, ROW_OFFSET+CHAR_HEIGHT_SMALL*LINE0, COLOR_TEXT, 1, "-----VMAG-PLOTTING-----\0");
+//	draw_string(COL_OFFSET, ROW_OFFSET+CHAR_HEIGHT_SMALL*LINE1, COLOR_TEXT, 1, "   Set RF Out Freq     \0");
+//	draw_string(COL_OFFSET, ROW_OFFSET+CHAR_HEIGHT_SMALL*LINE2, COLOR_TEXT, 1, "Hello-Hello\0");
 
 	/* --Plotting xy-axis--
 	 * Top of graph (x,y): (10,70)
 	 * End of graph (x,y): (210, 170)
 	 * --> Total 200 (= 210-10) samples are drawn per time.
 	*/
-	// Draw y-axis
+	/* Draw y-axis */
 	for (int i = Y_AXIS_TOP; i <= Y_AXIS_BOT; i++)
 	{
 	  draw_pixel(X_AXIS_LEFT, i, COLOR_TITLE);
 	}
-	// Draw x-axis
+	/* Draw x-axis */
 	for (int i = X_AXIS_LEFT; i <= X_AXIS_RIGHT; i++)
 	{
 	  draw_pixel(i, Y_AXIS_BOT, COLOR_TITLE);
@@ -557,20 +571,24 @@ void Plot_VMAG(void)
 		switch(hmi.button)
 		{
 			case (BACK):
+				HAL_Delay(DEBOUNCE_TIME);
 				hmi.button = NONE;
 				hmi.curr_state = Home;
 				hmi.state_hold = FALSE;
 				break;
 
 			case (UP):
+				HAL_Delay(DEBOUNCE_TIME);
 				hmi.button = NONE;
 				break;
 
 			case (DOWN):
+				HAL_Delay(DEBOUNCE_TIME);
 				hmi.button = NONE;
 				break;
 
 			case (OK):
+				HAL_Delay(DEBOUNCE_TIME);
 				hmi.button = NONE;
 				while(hmi.while_break == FALSE)
 				{
@@ -581,6 +599,7 @@ void Plot_VMAG(void)
 				break;
 
 			case (FORW):
+				HAL_Delay(DEBOUNCE_TIME);
 				hmi.button = NONE;
 				break;
 
@@ -590,19 +609,51 @@ void Plot_VMAG(void)
 	}
 }
 
-void Set_RF_Power(void)
+/*
+ * @brief	Clear the whole screen
+ */
+void Clear_Screen(void)
 {
-	// TODO
+	fill_rectangle(0, 0, WIDTH, HEIGHT, COLOR_BG);
 }
 
-
-void Read_VMAG(void)
+/*
+ * @brief	Clear screen in given rectangular
+ * @param	x_s	x-axis value of the first point
+ * @param	y_s	y-axis value of the first point
+ * @param	x_e	x-axis value of the adjacent point
+ * @param	y_e	y-axis value of the adjacent point
+ */
+void Clear_Screen_Custom(uint8_t x_s, uint8_t y_s, uint8_t x_e, uint8_t y_e)
 {
-	// TODO
+	fill_rectangle(x_s, y_s, x_e, y_e, COLOR_BG);
+}
+
+/*
+ * @brief	Set cursor at given position
+ * @param	pos	see @ref /Cursor position/
+ */
+void Set_Cursor(uint8_t pos)
+{
+	hmi.cur_pos = pos;
+	draw_string(ROW_OFFSET, COL_OFFSET+CHAR_HEIGHT_SMALL*pos, COLOR_SYMBOL, 1, cursor);
+}
+
+/*
+ * @brief	Clear cursor at given position
+ * @param	pos	see @ref /Cursor position/
+ */
+void Clear_Cursor(uint8_t pos)
+{
+	draw_string(ROW_OFFSET, COL_OFFSET+CHAR_HEIGHT_SMALL*pos, COLOR_BG, 1, cursor);
 }
 
 /*
  * @brief	Auxiliary function to assist the plotting functionality
+ * @param	x1	x-axis value of start point
+ * @param	y1	y-axis value of start point
+ * @param	x2	x-axis value of end point
+ * @param	y2	y-axis value of end point
  */
 void Bresenham_line_algorithm(uint8_t x1, uint8_t y1, uint8_t x2, uint8_t y2)
 {
@@ -611,10 +662,11 @@ void Bresenham_line_algorithm(uint8_t x1, uint8_t y1, uint8_t x2, uint8_t y2)
     int sy = (y1 < y2) ? 1 : -1;
     int err = dx - dy;
 
-    int max_steps = dx + dy + 1;  // Safety limit (max possible steps)
+    int max_steps = dx + dy + 1;  /* Safety limit (max possible steps) */
     int steps = 0;
 
-    while (steps < max_steps) {  // Ensures loop does not run forever
+    while (steps < max_steps) 	/* Ensures loop does not run forever */
+    {
     	draw_pixel(x1, y1, COLOR_SYMBOL);
 
         if (x1 == x2 && y1 == y2) break;
@@ -627,30 +679,64 @@ void Bresenham_line_algorithm(uint8_t x1, uint8_t y1, uint8_t x2, uint8_t y2)
     }
 }
 
-void num2str(uint64_t value, char *str, size_t size) {
-    if (size == 0) return; // Safety check
+/*
+ * @brief	Convert a number to corresponding string
+ *
+ * @param	value	unsigned 64-bit input number
+ * @param	str		char pointer of the output string
+ * @param	size	the size of the output string
+ */
+void num2str(uint64_t value, char *str, size_t size)
+{
+    if (size == 0) return; /* Safety check */
 
-    char temp[21]; // Max digits for uint64_t + null terminator
+    char temp[21]; /* Max digits for uint64_t + null terminator */
     int i = 0;
 
-    // Special case for zero
-    if (value == 0) {
+    /* Special case for zero */
+    if (value == 0)
+    {
         temp[i++] = '0';
-    } else {
+    }
+    else
+    {
         while (value > 0 && i < (int)(sizeof(temp) - 1)) {
-            temp[i++] = '0' + (value % 10); // Extract last digit
-            value /= 10; // Remove last digit
+            temp[i++] = '0' + (value % 10); /* Extract last digit */
+            value /= 10; /* Remove last digit */
         }
     }
 
-    temp[i] = '\0'; // Null-terminate
+    temp[i] = '\0'; /* Null-terminate */
 
-    // Reverse the string into output buffer
+    /* Reverse the string into output buffer */
     int len = i;
-    if (len >= (int)size) len = (int)size - 1; // Ensure it fits
+    if (len >= (int)size) len = (int)size - 1; /* Ensure it fits */
 
-    for (int j = 0; j < len; j++) {
-        str[j] = temp[len - j - 1]; // Reverse copy
+    for (int j = 0; j < len; j++)
+    {
+        str[j] = temp[len - j - 1]; /* Reverse copy */
     }
-    str[len] = '\0'; // Null-terminate output
+    str[len] = '\0'; /* Null-terminate output */
 }
+
+/*
+ * @brief	Convert a number to corresponding string (10 chars/ digits)
+ *
+ * @param	value	unsigned 64-bit input number
+ * @param	str		char pointer of the output string
+ * @param	size	the size of the output string
+ */
+void num2str_10digits(uint64_t value, char *str, size_t size) {
+	/* Convert a number to string first */
+    num2str(value, str, size);
+
+    size_t new_len = strlen(str);
+    /* Checking whether the new length is less than 10 */
+    if (new_len < 10) {
+        /* Shift existing characters to the right to make space for zeros */
+        memmove(str + (10 - new_len), str, new_len + 1);  /* +1 to move the null terminator */
+        /* Fill the start with '0' */
+        memset(str, '0', 10 - new_len);
+    }
+}
+

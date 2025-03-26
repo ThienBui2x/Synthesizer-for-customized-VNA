@@ -22,14 +22,12 @@ char initialize[2][12] =
 	"Initializes\0"
 };
 
-char home[6][24] =
+char home[4][24] =
 {
 	"-------- HOME ---------\0",
     "   Set RF Out Freq     \0",
 	"   Scan RF Out Freqs   \0",
-	"   Read VMag data      \0",
-	"   Plot VMag data      \0",
-	"   Set RF Out Power    \0"
+	"   Plot VMag data      \0"
 };
 
 char set_rf_out[4][24] =
@@ -62,11 +60,9 @@ char num[10][2] =
 	"9\0"
 };
 
-void (*home_func_ptr[5])(void) =
+void (*home_func_ptr[3])(void) =
 {
 	Set_RF_Out,
 	Scan_RF_Out,
-	Read_VMAG,
-	Plot_VMAG,
-	Set_RF_Power
+	Plot_VMAG
 };

@@ -13,9 +13,6 @@
 #include "math.h"
 
 /* Defines -------------------------------------------------------------------*/
-//#define adf4351_htim htim1
-//#define adf4351_hspi hspi1
-//#define adf4351_hadc hadc1
 
 /* Variables -----------------------------------------------------------------*/
 ADF4351_TypeDef adf4351 = {0};
@@ -23,26 +20,41 @@ ADF4351_TypeDef adf4351 = {0};
 extern uint16_t volatile vmag_val;
 
 /* Function definition -------------------------------------------------------*/
+
+/*
+ *	@brief	A mirco_delay function (small errors)
+ */
 void ADF4351_MicroDelay(uint16_t us)
 {
-	__HAL_TIM_SET_COUNTER(&adf4351_htim,0);  // set the counter value a 0
-	while (__HAL_TIM_GET_COUNTER(&adf4351_htim) < us-5);  // wait for the counter to reach the us input in the parameter
+	__HAL_TIM_SET_COUNTER(&adf4351_htim,0);  /* set the counter value a 0 */
+	/* wait for the counter to reach the us input in the parameter */
+	while (__HAL_TIM_GET_COUNTER(&adf4351_htim) < us-5);
 }
 
+/*
+ *	@brief	Pull down to assert the LE-Pin
+ */
 void ADF4351_Assert_LE(void)
 {
 	HAL_GPIO_WritePin(ADF4351_LE_GPIO_Port, ADF4351_LE_Pin, GPIO_PIN_RESET);
 }
 
+/*
+ *	@brief	Pull up to deassert the LE-Pin
+ */
 void ADF4351_Deassert_LE(void)
 {
 	HAL_GPIO_WritePin(ADF4351_LE_GPIO_Port, ADF4351_LE_Pin, GPIO_PIN_SET);
 }
 
+/*
+ *	@brief	Transmit SPI signal function of a register
+ *	@param	data	the 32-bit register data
+ */
 void ADF4351_Write(uint32_t data)
 {
-	// Assert LE  for whole period ...
-	// Write TxData with MSB order (3->0)
+	/* Assert LE  for whole period ...
+	   Write TxData with MSB order (3->0) */
 
 	ADF4351_Assert_LE();
 	ADF4351_MicroDelay(10);
@@ -56,6 +68,10 @@ void ADF4351_Write(uint32_t data)
 	ADF4351_Assert_LE();
 }
 
+/*
+ *	@brief	Send 6 registers data in LSB format
+ *	@param	data	32-bit pointer of registers data array
+ */
 void ADF4351_Registers_Write(uint32_t* data)
 {
 	for (int i = 5; i >= 0; i--)
@@ -65,25 +81,28 @@ void ADF4351_Registers_Write(uint32_t* data)
 	}
 }
 
+/*
+ *	@brief	Initialize the 6 registers of ADF4351
+ */
 void ADF4351_Initialize(void)
 {
 	HAL_TIM_Base_Start(&adf4351_htim);
 
 	adf4351.ref_freq = REF_FREQ_VAL;
 
-	adf4351.R0.INT			= 23;	// 16-bits INT value (Min = 23)
-	adf4351.R0.FRAC			= 0;	// 12-bits FRAC value
+	adf4351.R0.INT			= 23;	/* 16-bits INT value (Min = 23) */
+	adf4351.R0.FRAC			= 0;	/* 12-bits FRAC value */
 
 	adf4351.R1.PHASE_ADJUST = PHASE_ADJ_OFF;
 	adf4351.R1.PRESCALER	= PRESCALER_8_9;
-	adf4351.R1.PHASE		= 1;	// 12-bits Phase value
-	adf4351.R1.MOD			= 0;	// 12-bits Modulus value
+	adf4351.R1.PHASE		= 1;	/* 12-bits Phase value */
+	adf4351.R1.MOD			= 0;	/* 12-bits Modulus value */
 
 	adf4351.R2.LN_LS_MODES	= LOW_NOISE_MODE;
 	adf4351.R2.MUXOUT		= MUXOUT_THREE_STATE;
 	adf4351.R2.REF_DOUBLER	= REF_DOUBLER_DISABLED;
 	adf4351.R2.RDIV2		= REF_DIVIDED_BY_2_DISABLED;
-	adf4351.R2.R_COUNTER	= 1;	// 8-bits: Divided by 8 for 1Khz Resolution
+	adf4351.R2.R_COUNTER	= 1;	/* 8-bits: Divided by 8 for 1Khz Resolution */
 	adf4351.R2.DOUBLE_BUF	= DOUBLE_BUFFER_DISABLED;
 	adf4351.R2.CHARGE_PUMP	= CHARGE_PUMP_CURRENT_2_50;
 	adf4351.R2.LDF			= LDF_FRAC_N;
@@ -98,11 +117,11 @@ void ADF4351_Initialize(void)
 	adf4351.R3.CHARGE_CANCEL= CHARGE_CANCELATION_DISABLED;
 	adf4351.R3.CSR			= CYCLE_SLIP_REDUCTION_DISABLED;
 	adf4351.R3.CLK_DIV_MODE	= CLK_DIVIDER_OFF;
-	adf4351.R3.CLK_DIV		= 150;	// 12-bits CLK Divider value
+	adf4351.R3.CLK_DIV		= 150;	/* 12-bits CLK Divider value */
 
 	adf4351.R4.FEEDBACK_SEL = FEEDBACK_SEL_FUNDAMENTAL;
-	adf4351.R4.RF_DIV_SEL	= 2;	// Divided by 2^(RF_DIV_SEL)
-	adf4351.R4.SEL_CLK_DIV	= 80;	// Use value of 200 / RCounter
+	adf4351.R4.RF_DIV_SEL	= 2;	/* Divided by 2^(RF_DIV_SEL) */
+	adf4351.R4.SEL_CLK_DIV	= 80;	/* Use value of 200 / RCounter */
 	adf4351.R4.VCO_POW_DOWN	= VCO_POWER_DOWN_POWERED_UP;
 	adf4351.R4.MTLD			= MUTE_TILL_LOCK_DETECT_DISABLED;
 	adf4351.R4.AUX_OUT_SEL	= AUX_OUTPUT_SEL_DIVIDED_OUTPUT;
@@ -115,6 +134,9 @@ void ADF4351_Initialize(void)
 	adf4351.R5.RESERVED_HIGH= 3;
 }
 
+/*
+ *	@brief	Write the 6 registers of ADF4351
+ */
 void ADF4351_Registers_Update(void)
 {
 	adf4351.reg[0]	= (uint32_t)(adf4351.R0.INT) 			<< 15 |
@@ -164,6 +186,9 @@ void ADF4351_Registers_Update(void)
 	ADF4351_Registers_Write(adf4351.reg);
 }
 
+/*
+ *	@brief	Function to calculate the PFD Frequency
+ */
 uint8_t ADF4351_Calc_PFD_Freq(void)
 {
 	float pfd_freq = adf4351.ref_freq * ((float)(1.0 + adf4351.R2.REF_DOUBLER)
@@ -171,7 +196,7 @@ uint8_t ADF4351_Calc_PFD_Freq(void)
 
 	if ((pfd_freq > 32000000.0) || (pfd_freq < 125000.0))
 	{
-		return 1;	// Wrong pfd_freq
+		return 1;	/* Wrong pfd_freq */
 	}
 	else
 	{
@@ -181,14 +206,16 @@ uint8_t ADF4351_Calc_PFD_Freq(void)
 
 }
 
+/*
+ *	@brief	Function to set the output frequency
+ */
 uint8_t ADF4351_Set_Out_Freq(double freq)
 {
 	uint64_t vco_freq = 0;
 	uint8_t DIV_val = 1;
-	uint8_t RF_DIV_val = 0;	// log2(DIV_val)
+	uint8_t RF_DIV_val = 0;	/* log2(DIV_val) */
 	uint32_t localosc_ratio = VCO_FREQ_MIN/freq;
 	uint16_t INT_val = 0;
-//	double FRAC_MOD_ratio = 0.0;
 	uint16_t FRAC_val = 0;
 	uint16_t MOD_val = 0;
 	uint64_t calc_freq = 0;
@@ -196,39 +223,32 @@ uint8_t ADF4351_Set_Out_Freq(double freq)
 
 	if(ADF4351_Calc_PFD_Freq() != 0)
 	{
-		return 1;	// Wrong pfd_freq
+		return 1;	/* Wrong pfd_freq */
 	}
 
 	if ((freq > OUT_FREQ_MAX) || (freq < OUT_FREQ_MIN))
 	{
-		return 1; // Out of Range
+		return 1; /* Out of Range */
 	}
 
-	// select the output divider
+	/* select the output divider */
 	while ( (DIV_val <= localosc_ratio) && (DIV_val <= 64) ) {
 		DIV_val *= 2 ;
 		RF_DIV_val++  ;
 	}
 	vco_freq = DIV_val * freq;
 	INT_val = (uint16_t)(vco_freq / adf4351.pfd_freq);
-
-//	FRAC_MOD_ratio = vco_freq / adf4351.pfd_freq - INT_val;
-//	MOD_val = denominator(FRAC_MOD_ratio);
-//	FRAC_val = (uint16_t)(MOD_val * (double)FRAC_MOD_ratio);
-
 	gcd_val = gcd(vco_freq,adf4351.pfd_freq);
 	FRAC_val = (vco_freq % adf4351.pfd_freq) / gcd_val;
 	MOD_val = adf4351.pfd_freq / gcd_val;
 
 	calc_freq = (INT_val*MOD_val+FRAC_val)*gcd_val/DIV_val;
-//	calc_freq = (double)((INT_val + ((double)FRAC_val/MOD_val))
-//			* adf4351.pfd_freq)/DIV_val;
 
 	adf4351.R0.INT = INT_val;
 	adf4351.R0.FRAC = FRAC_val;
 	adf4351.R1.MOD = MOD_val;
 
-	// If operating (freq) above 3,6 Ghz -> PRESCALER_8_9
+	/* If operating (freq) above 3,6 Ghz -> PRESCALER_8_9 */
 	if (freq > 3600000000/DIV_val)
 	{
 		adf4351.R1.PRESCALER = PRESCALER_8_9;
@@ -240,11 +260,11 @@ uint8_t ADF4351_Set_Out_Freq(double freq)
 
 	if (FRAC_val == 0)
 	{
-		// 0 < FRAC < (MOD - 1) < 4095
-		// 0 < MOD < 4095
+		/* 0 < FRAC < (MOD - 1) < 4095
+		   0 < MOD < 4095 */
 		adf4351.R1.MOD = 2500;
 
-		// Operate in INT-N mode
+		/* Operate in INT-N mode */
 		adf4351.R2.LDP = LDP_6ns;
 		adf4351.R2.LDF = LDF_INT_N;
 		adf4351.R3.CHARGE_CANCEL = CHARGE_CANCELATION_ENABLED;
@@ -252,7 +272,7 @@ uint8_t ADF4351_Set_Out_Freq(double freq)
 	}
 	else
 	{
-		// Operate in FRAC-N mode
+		/* Operate in FRAC-N mode */
 		adf4351.R2.LDP = LDP_10ns;
 		adf4351.R2.LDF = LDF_FRAC_N;
 		adf4351.R3.CHARGE_CANCEL = CHARGE_CANCELATION_DISABLED;
@@ -264,22 +284,32 @@ uint8_t ADF4351_Set_Out_Freq(double freq)
 
 	ADF4351_Registers_Update();
 
-	// Verifying the calculated RF frequency
+	/* Verifying the calculated RF frequency */
 	if(calc_freq == freq) return 0;
 	else return 1;
 }
 
+/*
+ *	@brief	Function to set the RF Power
+ *	@param	power see @ref /Register 4/
+ */
 void ADF4351_Set_RF_Power(uint8_t power)
 {
-	// Ignore invalid power values
+	/* Ignore invalid power values */
 	if (power > 3)
 		return;
 	adf4351.R4.OUT_POW = power;
 }
 
+/*
+ *	@brief	Function to scan the RF frequency given start and stop frequencies
+ *	@param	start	start frequency (not less than 35 KHz)
+ *	@param	stop	stop frequency (not more than 4.4 GHz)
+ *	@param	step	step frequency
+ */
 uint8_t ADF4351_Scanning(uint64_t start, uint64_t stop, uint64_t step)
 {
-	// wrong scanning period
+	/* wrong scanning period */
 	if (stop <= start) return 1;
 	else
 	{
@@ -294,10 +324,8 @@ uint8_t ADF4351_Scanning(uint64_t start, uint64_t stop, uint64_t step)
 				HAL_GPIO_TogglePin(RED_LED_GPIO_Port, RED_LED_Pin);
 			}
 
-//			ADF4351_Set_Out_Freq(new_freq);
-			HAL_ADC_Start_IT(&adf4351_hadc);
+			ADF4351_DataConvert();
 
-//			new_freq = adf4351.calc_freq + step;
 			new_freq = new_freq + step;
 			idx++;
 		}
@@ -305,11 +333,19 @@ uint8_t ADF4351_Scanning(uint64_t start, uint64_t stop, uint64_t step)
 	}
 }
 
+/*
+ *	@brief	Function to convert ADF4351 data using ADC
+ */
 void ADF4351_DataConvert(void)
 {
 	HAL_ADC_Start_IT(&adf4351_hadc);
 }
 
+/*
+ *	@brief	Function to calculate GCD of 2 numbers
+ *	@param	a	first number
+ *	@param	b	second number
+ */
 uint64_t gcd(uint64_t a, uint64_t b)
 {
     while (b != 0) {
@@ -319,44 +355,3 @@ uint64_t gcd(uint64_t a, uint64_t b)
     }
     return a;
 }
-
-/* Convert fractional number to numerator and denominator */
-uint16_t denominator(double number)
-{
-	// Define precision (e.g., 1e6 for six decimal places)
-	const unsigned int precision = 1000000;
-	// Round to nearest integer
-	unsigned int numerator = (unsigned int)(number * precision + 0.5);
-	unsigned int denominator = precision;
-
-    // Calculate GCD of numerator and denominator
-    unsigned int divisor = gcd(numerator, denominator);
-
-    // Simplify the denominator
-    return denominator / divisor;
-}
-
-// Function to find the closest power of 2
-uint16_t closest_power_of_2(uint16_t n)
-{
-	// Closest power of 2 to 0 is typically 1
-	if (n == 0)
-	{
-        return 1;
-    }
-    // If already a power of 2, return itself
-    if ((n > 0) && ((n & (n - 1)) == 0))
-    {
-        return n;
-    }
-
-    // Largest power of 2 <= n
-    uint16_t lower = 1 << ((uint16_t)log2(n));
-    // Smallest power of 2 > n
-    uint16_t higher = lower << 1;
-    // Compare distances and return the closer power of 2
-    return (n - lower) <= (higher - n) ? lower : higher;
-}
-
-
-

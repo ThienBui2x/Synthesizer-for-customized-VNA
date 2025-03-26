@@ -28,6 +28,7 @@
 #include "ILI9225.h"
 #include "adf4351_hmi.h"
 #include "adf4351.h"
+#include "math.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -66,7 +67,7 @@ extern uint8_t  volatile x_curr_val;
 extern uint8_t  volatile y_prev_val;
 extern uint8_t  volatile x_prev_val;
 
-uint16_t idx = 0;
+uint16_t volatile idx = 0;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -140,6 +141,9 @@ void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef *hadc)
 
 		/* Read VMAG values from ADC */
 		vmag_val = HAL_ADC_GetValue(&adf4351_hadc);
+		/* Convert to db using equation: vmag_db = 20*log10(vmag)
+		 * Scaled by 100 for plotting purpose */
+		vmag_val = 20*log10(vmag_val+1) * 100;
 		if( vmag_val < vmag_min)
 		{
 			vmag_min = vmag_val;
@@ -172,7 +176,10 @@ void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef *hadc)
 			/* The higher y_value, the lower the y-plot */
 			y_curr_val = y_curr_val + 2*(y_mean_val-y_curr_val);
 
-			if(vmag_idx > OFFSET) Bresenham_line_algorithm(x_prev_val, y_prev_val, x_curr_val, y_curr_val);
+			if(vmag_idx > OFFSET)
+			{
+				Bresenham_line_algorithm(x_prev_val, y_prev_val, x_curr_val, y_curr_val);
+			}
 
 			y_prev_val = y_curr_val;
 			x_prev_val = x_curr_val;
@@ -217,19 +224,9 @@ int main(void)
   MX_SPI1_Init();
   MX_TIM2_Init();
   /* USER CODE BEGIN 2 */
-//  Initialize the LCD
   lcd_init();
   HMI_Init();
   Welcome();
-
-//  ADF4351_Set_Out_Freq(862000000);
-//  ADF4351_Set_Out_Freq(2200000000);
-//  ADF4351_Set_Out_Freq(2400000000);
-//  ADF4351_Set_Out_Freq(3500000000);
-//  ADF4351_Set_Out_Freq(355000000);
-//  ADF4351_Set_Out_Freq(3552000000);
-//  ADF4351_Set_Out_Freq(4000000000);
-
   /* USER CODE END 2 */
 
   /* Infinite loop */
