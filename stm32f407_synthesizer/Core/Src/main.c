@@ -28,6 +28,7 @@
 #include "ILI9225.h"
 #include "adf4351_hmi.h"
 #include "adf4351.h"
+#include "math.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -140,6 +141,9 @@ void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef *hadc)
 
 		/* Read VMAG values from ADC */
 		vmag_val = HAL_ADC_GetValue(&adf4351_hadc);
+		/* Convert to db using equation: vmag_db = 20*log10(vmag)
+		 * Scaled by 100 for plotting purpose */
+		vmag_val = 20*log10(vmag_val+1) * 100;
 		if( vmag_val < vmag_min)
 		{
 			vmag_min = vmag_val;
