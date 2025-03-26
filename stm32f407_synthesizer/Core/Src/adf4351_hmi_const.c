@@ -22,15 +22,28 @@ char initialize[2][12] =
 	"Initializes\0"
 };
 
-char home[4][24] =
+char home[5][24] =
 {
 	"-------- HOME ---------\0",
     "   Set RF Out Freq     \0",
+	"   Set RF Out Range    \0",
 	"   Scan RF Out Freqs   \0",
 	"   Plot VMag data      \0"
 };
 
-char set_rf_out[4][24] =
+char set_rf_out[2][24] =
+{
+	"-----Set RF Range------\0",
+	"   OutFreq             \0"
+};
+
+char set_rf_out1[2][11] =
+{
+	"          \0",
+	"OutFreq   \0"
+};
+
+char set_rf_range[4][24] =
 {
 	"-----Set RF Range------\0",
 	"   StartFreq           \0",
@@ -38,7 +51,7 @@ char set_rf_out[4][24] =
 	"   StepFreq            \0"
 };
 
-char set_rf_out1[4][11] =
+char set_rf_range1[4][11] =
 {
 	"          \0",
 	"StartFreq \0",
@@ -60,9 +73,10 @@ char num[10][2] =
 	"9\0"
 };
 
-void (*home_func_ptr[3])(void) =
+void (*home_func_ptr[4])(void) =
 {
 	Set_RF_Out,
+	Set_RF_Range,
 	Scan_RF_Out,
 	Plot_VMAG
 };
