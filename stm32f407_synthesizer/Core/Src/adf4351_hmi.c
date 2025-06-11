@@ -38,12 +38,14 @@ uint8_t is_default = TRUE;
 extern char cursor[2];
 extern char welcome[3][12];
 extern char initialize[2][12];
-extern char home[4][24];
-extern char set_rf_out[4][24];
-extern char set_rf_out1[4][11];
+extern char home[5][24];
+extern char set_rf_out[2][24];
+extern char set_rf_out1[2][11];
+extern char set_rf_range[4][24];
+extern char set_rf_range1[4][11];
 extern char num[10][2];
 
-extern void (*home_func_ptr[3])(void);
+extern void (*home_func_ptr[4])(void);
 
 /* Function definition -------------------------------------------------------*/
 
@@ -100,6 +102,7 @@ void Welcome(void)
  * @brief	Main menu for RF Synthesizer
  * 			Current/Up-comming stages:
  * 				- Set_RF_Out
+ * 				- Set_RF_Range
  * 				- Scan_RF_Out
  * 				- Plot_VMAG
  * @note	BACK-BUT	N/A
@@ -173,6 +176,228 @@ void Home(void)
 }
 
 /*
+ * @brief	Set Custom RF-Out
+ * @note	RF-Out 	 MIN = 35 	(khz)
+ * 			RF-Out	 MAX = 4.4	(Ghz)
+ *
+ * @note	**In case Unselected**
+ * 			BACK-BUT	Returns to previous state
+ * 			DOWN-BUT	N/A
+ * 			UP-BUT		N/A
+ * 			FORW-BUT	N/A
+ * 			OK-BUT		Select the freq to change
+ *
+ * @note	**In case Selected**
+ * 			BACK-BUT	Move digit to the left
+ * 			DOWN-BUT	Decrease digit value
+ * 			UP-BUT		Increase digit value
+ * 			FORW-BUT	Move digit to the right
+ * 			OK-BUT		Unselect the freq to change
+ */
+void Set_RF_Out(void)
+{
+	HAL_Delay(DEBOUNCE_TIME);
+	hmi.button = NONE;
+	hmi.state_hold = TRUE;
+
+	uint8_t rows = sizeof(set_rf_out) / sizeof(set_rf_out[0]);
+	uint8_t is_selected = FALSE; /* state-var to lock the selected line */
+	uint8_t val_pos = 0;	/* Range [0..9] */
+	uint8_t digit = 0;
+	char rf_val[11];
+
+	/* Used the freq values from scan_freq variable */
+	num2str_10digits(adf4351.scan_freq, rf_val, sizeof(rf_val));
+
+	/* NOTE: there is no need for cursor operation in this stage */
+	Clear_Screen();
+	hmi.cur_pos = 1; /* ONLY 1 line for RF_Out */
+	for(int idx = 0; idx < rows; idx++)
+	{
+		draw_string(ROW_OFFSET, COL_OFFSET+CHAR_HEIGHT_SMALL*idx, COLOR_TEXT, 1, set_rf_out[idx]);
+	}
+
+	draw_string(COL_OFFSET+CHAR_WIDTH_SMALL*(CURSOR_OFFSET+SUBTEXT_OFFSET),
+			ROW_OFFSET+CHAR_HEIGHT_SMALL*hmi.cur_pos, COLOR_TEXT, 1, rf_val);
+
+	while(hmi.state_hold)
+	{
+		switch(hmi.button)
+		{
+			case (BACK):
+				HAL_Delay(200);
+				hmi.button = NONE;
+				if(is_selected == FALSE)
+				{
+					/* Store out freq */
+					adf4351.scan_freq 	= strtoull(rf_val, NULL, 10);
+					/* Set new RF_Out freq */
+					if ( ADF4351_Set_Out_Freq(adf4351.scan_freq) == 1)
+					{
+						HAL_GPIO_TogglePin(RED_LED_GPIO_Port, RED_LED_Pin);
+					}
+
+					hmi.curr_state = Home;
+					hmi.state_hold = FALSE;
+				}
+				else /* is_selected = TRUE */
+				{
+					/* Examine the digit of current val_pos */
+					digit = rf_val[val_pos]-'0';
+
+					/* Draw the digit with COLOR_BG (Clear the digit) */
+					draw_string(COL_OFFSET+CHAR_WIDTH_SMALL*(CURSOR_OFFSET+SUBTEXT_OFFSET+val_pos),
+							ROW_OFFSET+CHAR_HEIGHT_SMALL*hmi.cur_pos, COLOR_BG, 1, num[digit]);
+					/* Re-draw the digit with COLOR_TEXT (unselected) */
+					draw_string(COL_OFFSET+CHAR_WIDTH_SMALL*(CURSOR_OFFSET+SUBTEXT_OFFSET+val_pos),
+							ROW_OFFSET+CHAR_HEIGHT_SMALL*hmi.cur_pos, COLOR_TEXT, 1, num[digit]);
+
+					if(val_pos > 0) val_pos--;
+					else val_pos = 9;
+
+					/* Examine the digit of current val_pos */
+					digit = rf_val[val_pos]-'0';
+
+					/* Draw the digit with COLOR_BG (Clear the digit) */
+					draw_string(COL_OFFSET+CHAR_WIDTH_SMALL*(CURSOR_OFFSET+SUBTEXT_OFFSET+val_pos),
+							ROW_OFFSET+CHAR_HEIGHT_SMALL*hmi.cur_pos, COLOR_BG, 1, num[digit]);
+
+					/* Re-draw the digit with COLOR_TEXT1 (selected) */
+					draw_string(COL_OFFSET+CHAR_WIDTH_SMALL*(CURSOR_OFFSET+SUBTEXT_OFFSET+val_pos),
+							ROW_OFFSET+CHAR_HEIGHT_SMALL*hmi.cur_pos, COLOR_TEXT1, 1, num[digit]);
+				}
+				break;
+
+			case (UP):
+				HAL_Delay(200);
+				hmi.button = NONE;
+				if(is_selected == FALSE)
+				{
+					/* DO Nothing */
+				}
+				else /* is_selected = TRUE */
+				{
+					/* Examine the digit of current val_pos */
+					digit = rf_val[val_pos]-'0';
+
+					/* Draw the digit with COLOR_BG (Clear the digit) */
+					draw_string(COL_OFFSET+CHAR_WIDTH_SMALL*(CURSOR_OFFSET+SUBTEXT_OFFSET+val_pos),
+							ROW_OFFSET+CHAR_HEIGHT_SMALL*hmi.cur_pos, COLOR_BG, 1, num[digit]);
+
+					if(digit >= 9) digit = 0;
+					else digit++;
+
+					/* Re-draw the digit with COLOR_TEXT1 (selected) and new value */
+					draw_string(COL_OFFSET+CHAR_WIDTH_SMALL*(CURSOR_OFFSET+SUBTEXT_OFFSET+val_pos),
+							ROW_OFFSET+CHAR_HEIGHT_SMALL*hmi.cur_pos, COLOR_TEXT1, 1, num[digit]);
+
+					/* Update digit in rf_val string */
+					rf_val[val_pos] = digit + '0';
+				}
+				break;
+
+			case (DOWN):
+				HAL_Delay(200);
+				hmi.button = NONE;
+				if(is_selected == FALSE)
+				{
+					/* DO Nothing */
+				}
+				else /* is_selected = TRUE */
+				{
+					/* Examine the digit of current val_pos */
+					digit = rf_val[val_pos]-'0';
+
+					/* Draw the digit with COLOR_BG (Clear the digit) */
+					draw_string(COL_OFFSET+CHAR_WIDTH_SMALL*(CURSOR_OFFSET+SUBTEXT_OFFSET+val_pos),
+							ROW_OFFSET+CHAR_HEIGHT_SMALL*hmi.cur_pos, COLOR_BG, 1, num[digit]);
+
+					if(digit <= 0) digit = 9;
+					else digit--;
+
+					/* Re-draw the digit with COLOR_TEXT1 (selected) and new value */
+					draw_string(COL_OFFSET+CHAR_WIDTH_SMALL*(CURSOR_OFFSET+SUBTEXT_OFFSET+val_pos),
+							ROW_OFFSET+CHAR_HEIGHT_SMALL*hmi.cur_pos, COLOR_TEXT1, 1, num[digit]);
+
+					/* Update digit in rf_val string */
+					rf_val[val_pos] = digit + '0';
+				}
+				break;
+
+			case (OK):
+				HAL_Delay(200);
+				hmi.button = NONE;
+				if(is_selected == FALSE)
+				{
+					/* Re-draw the text display with COLOR_TEXT1 (selected) */
+					is_selected = TRUE;
+					draw_string(COL_OFFSET+CHAR_WIDTH_SMALL*CURSOR_OFFSET,
+							ROW_OFFSET+CHAR_HEIGHT_SMALL*hmi.cur_pos, COLOR_TEXT1, 1, set_rf_out1[0]);
+					draw_string(COL_OFFSET+CHAR_WIDTH_SMALL*CURSOR_OFFSET,
+							ROW_OFFSET+CHAR_HEIGHT_SMALL*hmi.cur_pos, COLOR_TEXT1, 1, set_rf_out1[hmi.cur_pos]);
+				}
+				else /* is_selected = TRUE */
+				{
+					/* Reset the color and value of digit */
+					draw_string(COL_OFFSET+CHAR_WIDTH_SMALL*(CURSOR_OFFSET+SUBTEXT_OFFSET+val_pos),
+							ROW_OFFSET+CHAR_HEIGHT_SMALL*hmi.cur_pos, COLOR_BG, 1, num[digit]);
+					draw_string(COL_OFFSET+CHAR_WIDTH_SMALL*(CURSOR_OFFSET+SUBTEXT_OFFSET+val_pos),
+							ROW_OFFSET+CHAR_HEIGHT_SMALL*hmi.cur_pos, COLOR_TEXT, 1, num[digit]);
+					digit = 0;
+					val_pos = 0;
+
+					/* Re-draw the text display with COLOR_TEXT (unselected) */
+					is_selected = FALSE;
+					draw_string(COL_OFFSET+CHAR_WIDTH_SMALL*CURSOR_OFFSET,
+							ROW_OFFSET+CHAR_HEIGHT_SMALL*hmi.cur_pos, COLOR_TEXT, 1, set_rf_out1[0]);
+					draw_string(COL_OFFSET+CHAR_WIDTH_SMALL*CURSOR_OFFSET,
+							ROW_OFFSET+CHAR_HEIGHT_SMALL*hmi.cur_pos, COLOR_TEXT, 1, set_rf_out1[hmi.cur_pos]);
+				}
+				break;
+
+			case (FORW):
+				HAL_Delay(200);
+				hmi.button = NONE;
+				if(is_selected == FALSE)
+				{
+					/* DO Nothing */
+				}
+				else /* is_selected = TRUE */
+				{
+					/* Examine the digit of current val_pos */
+					digit = rf_val[val_pos]-'0';
+
+					/* Draw the digit with COLOR_BG (Clear the digit) */
+					draw_string(COL_OFFSET+CHAR_WIDTH_SMALL*(CURSOR_OFFSET+SUBTEXT_OFFSET+val_pos),
+							ROW_OFFSET+CHAR_HEIGHT_SMALL*hmi.cur_pos, COLOR_BG, 1, num[digit]);
+
+					/* Re-draw the digit with COLOR_TEXT (unselected) */
+					draw_string(COL_OFFSET+CHAR_WIDTH_SMALL*(CURSOR_OFFSET+SUBTEXT_OFFSET+val_pos),
+							ROW_OFFSET+CHAR_HEIGHT_SMALL*hmi.cur_pos, COLOR_TEXT, 1, num[digit]);
+
+					if(val_pos < 9) val_pos++;
+					else val_pos = 0;
+
+					/* Examine the digit of current val_pos */
+					digit = rf_val[val_pos]-'0';
+
+					/* Draw the digit with COLOR_BG (Clear the digit) */
+					draw_string(COL_OFFSET+CHAR_WIDTH_SMALL*(CURSOR_OFFSET+SUBTEXT_OFFSET+val_pos),
+							ROW_OFFSET+CHAR_HEIGHT_SMALL*hmi.cur_pos, COLOR_BG, 1, num[digit]);
+
+					/* Re-draw the digit with COLOR_TEXT (selected) */
+					draw_string(COL_OFFSET+CHAR_WIDTH_SMALL*(CURSOR_OFFSET+SUBTEXT_OFFSET+val_pos),
+							ROW_OFFSET+CHAR_HEIGHT_SMALL*hmi.cur_pos, COLOR_TEXT1, 1, num[digit]);
+				}
+				break;
+
+			default:
+				break;
+		}
+	}
+}
+
+/*
  * @brief	Set Start and Stop RF-Freq for scanning stage
  * @note	RF-Start MIN = 35 	(khz)
  * 			RF-End	 MAX = 4.4	(Ghz)
@@ -191,13 +416,13 @@ void Home(void)
  * 			FORW-BUT	Move digit to the right
  * 			OK-BUT		Unselect the freq to change
  */
-void Set_RF_Out(void)
+void Set_RF_Range(void)
 {
 	HAL_Delay(DEBOUNCE_TIME);
 	hmi.button = NONE;
 	hmi.state_hold = TRUE;
 
-	uint8_t rows = sizeof(set_rf_out) / sizeof(set_rf_out[0]);
+	uint8_t rows = sizeof(set_rf_range) / sizeof(set_rf_range[0]);
 	uint8_t is_selected = FALSE; /* state-var to lock the selected line */
 	uint8_t val_pos = 0;	/* Range [0..9] */
 	uint8_t digit = 0;
@@ -223,7 +448,7 @@ void Set_RF_Out(void)
 	hmi.cur_end = rows-1;	/* Skip the first line */
 	for(int idx = 0; idx < rows; idx++)
 	{
-		draw_string(ROW_OFFSET, COL_OFFSET+CHAR_HEIGHT_SMALL*idx, COLOR_TEXT, 1, set_rf_out[idx]);
+		draw_string(ROW_OFFSET, COL_OFFSET+CHAR_HEIGHT_SMALL*idx, COLOR_TEXT, 1, set_rf_range[idx]);
 	}
 
 	for(int idx = START_FREQ; idx <= STEP_FREQ; idx++)
@@ -351,9 +576,9 @@ void Set_RF_Out(void)
 					/* Re-draw the text display with COLOR_TEXT1 (selected) */
 					is_selected = TRUE;
 					draw_string(COL_OFFSET+CHAR_WIDTH_SMALL*CURSOR_OFFSET,
-							ROW_OFFSET+CHAR_HEIGHT_SMALL*hmi.cur_pos, COLOR_TEXT1, 1, set_rf_out1[0]);
+							ROW_OFFSET+CHAR_HEIGHT_SMALL*hmi.cur_pos, COLOR_TEXT1, 1, set_rf_range1[0]);
 					draw_string(COL_OFFSET+CHAR_WIDTH_SMALL*CURSOR_OFFSET,
-							ROW_OFFSET+CHAR_HEIGHT_SMALL*hmi.cur_pos, COLOR_TEXT1, 1, set_rf_out1[hmi.cur_pos]);
+							ROW_OFFSET+CHAR_HEIGHT_SMALL*hmi.cur_pos, COLOR_TEXT1, 1, set_rf_range1[hmi.cur_pos]);
 				}
 				else /* is_selected = TRUE */
 				{
@@ -368,9 +593,9 @@ void Set_RF_Out(void)
 					/* Re-draw the text display with COLOR_TEXT (unselected) */
 					is_selected = FALSE;
 					draw_string(COL_OFFSET+CHAR_WIDTH_SMALL*CURSOR_OFFSET,
-							ROW_OFFSET+CHAR_HEIGHT_SMALL*hmi.cur_pos, COLOR_TEXT, 1, set_rf_out1[0]);
+							ROW_OFFSET+CHAR_HEIGHT_SMALL*hmi.cur_pos, COLOR_TEXT, 1, set_rf_range1[0]);
 					draw_string(COL_OFFSET+CHAR_WIDTH_SMALL*CURSOR_OFFSET,
-							ROW_OFFSET+CHAR_HEIGHT_SMALL*hmi.cur_pos, COLOR_TEXT, 1, set_rf_out1[hmi.cur_pos]);
+							ROW_OFFSET+CHAR_HEIGHT_SMALL*hmi.cur_pos, COLOR_TEXT, 1, set_rf_range1[hmi.cur_pos]);
 				}
 				break;
 

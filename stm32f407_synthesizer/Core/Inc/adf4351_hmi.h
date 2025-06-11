@@ -99,6 +99,7 @@ void Home(void);
 void Scan_RF_Out(void);
 void Plot_VMAG(void);
 void Set_RF_Out(void);
+void Set_RF_Range(void);
 void Clear_Screen(void);
 void Clear_Screen_Custom(uint8_t x_s, uint8_t y_s, uint8_t x_e, uint8_t y_e);
 void Set_Cursor(uint8_t pos);
