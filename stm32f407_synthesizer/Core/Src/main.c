@@ -148,6 +148,7 @@ void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef *hadc)
 		{
 			vmag_min = vmag_val;
 			adf4351.scan_freq = adf4351.calc_freq;
+			vmag_val-=1000;
 		}
 		vmag[idx] = vmag_val;
 		idx++;
