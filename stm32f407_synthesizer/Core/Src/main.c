@@ -21,6 +21,7 @@
 #include "adc.h"
 #include "spi.h"
 #include "tim.h"
+#include "usart.h"
 #include "gpio.h"
 
 /* Private includes ----------------------------------------------------------*/
@@ -29,6 +30,8 @@
 #include "adf4351_hmi.h"
 #include "adf4351.h"
 #include "math.h"
+#include "stdio.h"
+#include "string.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -141,6 +144,11 @@ void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef *hadc)
 
 		/* Read VMAG values from ADC */
 		vmag_val = HAL_ADC_GetValue(&adf4351_hadc);
+
+		char txBuf[6];
+		sprintf(txBuf, "%04X\n", (uint16_t)vmag_val);
+		HAL_UART_Transmit(&huart6, (uint8_t *)txBuf, strlen(txBuf), 10);
+
 		/* Convert to db using equation: vmag_db = 20*log10(vmag)
 		 * Scaled by 100 for plotting purpose */
 		vmag_val = 20*log10(vmag_val+1) * 100;
@@ -224,6 +232,8 @@ int main(void)
   MX_ADC1_Init();
   MX_SPI1_Init();
   MX_TIM2_Init();
+  MX_USART1_UART_Init();
+  MX_USART6_UART_Init();
   /* USER CODE BEGIN 2 */
   lcd_init();
   HMI_Init();
