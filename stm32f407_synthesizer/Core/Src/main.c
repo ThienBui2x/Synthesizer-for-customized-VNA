@@ -32,6 +32,7 @@
 #include "math.h"
 #include "stdio.h"
 #include "string.h"
+#include "stdlib.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -41,7 +42,7 @@
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
-
+#define BUF_SIZE 	50
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -71,6 +72,13 @@ extern uint8_t  volatile y_prev_val;
 extern uint8_t  volatile x_prev_val;
 
 uint16_t volatile idx = 0;
+
+// Will move to a separate file for USART later
+uint8_t rxBuf[BUF_SIZE];
+uint8_t rxTemp;
+uint8_t rxCnt = 0;
+uint8_t isAppRun = FALSE;
+uint8_t isHeaderSent = FALSE;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -81,6 +89,80 @@ void SystemClock_Config(void);
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
+// This function allows WindowApp to control the freq parameters
+// No more control via LCD screen with button (slow & inefficient)
+// State 'Set_RF_Range' reworks to 'Show_RF_Range' (could be removed!!) -> separate Ticket
+void UART_Header_Rx(uint8_t *rxBuf)
+{
+    char temp[9]; // temporary buffer for hex fields
+    // Extract slices and convert
+    strncpy(temp, (const char *)rxBuf, 2);
+    temp[2] = '\0';
+    uint8_t firstBitStart = (uint8_t)strtoul(temp, NULL, 16);
+
+    strncpy(temp, (const char *)rxBuf + 2, 8);
+    temp[8] = '\0';
+    uint32_t otherBitsStart = (uint32_t)strtoul(temp, NULL, 16);
+
+    strncpy(temp, (const char *)rxBuf + 10, 2);
+    temp[2] = '\0';
+    uint8_t firstBitStop = (uint8_t)strtoul(temp, NULL, 16);
+
+    strncpy(temp, (const char *)rxBuf + 12, 8);
+    temp[8] = '\0';
+    uint32_t otherBitsStop = (uint32_t)strtoul(temp, NULL, 16);
+
+    strncpy(temp, (const char *)rxBuf + 20, 8);
+    temp[8] = '\0';
+    adf4351.step_freq = (uint64_t)strtoul(temp, NULL, 16);
+
+    /* Reconstruct full values */
+    adf4351.start_freq = (uint64_t)firstBitStart * 1000000000ULL + otherBitsStart;
+    adf4351.stop_freq  = (uint64_t)firstBitStop  * 1000000000ULL + otherBitsStop;
+}
+
+void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
+{
+	/* Prevent unused argument(s) compilation warning */
+	UNUSED(huart);
+	if(huart->Instance == USART6)
+	{
+		/* Each command, data ends with '\n' */
+		if(rxTemp == '\n')
+		{
+			/* Manually add terminate character to the RxBuf */
+			rxBuf[rxCnt] = '\0';
+			rxCnt = 0;
+
+			/* The data extraction is ONLY executed after START command */
+			if(isHeaderSent)
+			{
+				isHeaderSent = FALSE;
+				/* Extract freq information */
+				UART_Header_Rx(rxBuf);
+			}
+
+			/* In case START/STOP command */
+			// WindowApp should block START button when it is already pressed
+			// -> need to STOP first and vice versa
+			if(strcmp((char *)rxBuf, "Start") == 0)
+			{
+				isAppRun = TRUE;
+				isHeaderSent = TRUE;
+			}
+			else if(strcmp((char *)rxBuf, "Stop") == 0) isAppRun = FALSE;
+		}
+		else
+		{
+			/* Keep reading data until reaching '\n' character */
+			if(rxCnt < BUF_SIZE - 1) rxBuf[rxCnt++] = rxTemp;
+			else rxCnt = 0;
+		}
+		/* Restart the interrupt reception for next byte */
+		HAL_UART_Receive_IT(huart, &rxTemp, 1);
+	}
+}
+
 void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 {
   /* Prevent unused argument(s) compilation warning */
@@ -149,15 +231,15 @@ void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef *hadc)
 		sprintf(txBuf, "%04X\n", (uint16_t)vmag_val);
 		HAL_UART_Transmit(&huart6, (uint8_t *)txBuf, strlen(txBuf), 10);
 
-		/* Convert to db using equation: vmag_db = 20*log10(vmag)
-		 * Scaled by 100 for plotting purpose */
-		vmag_val = 20*log10(vmag_val+1) * 100;
 		if( vmag_val < vmag_min)
 		{
 			vmag_min = vmag_val;
 			adf4351.scan_freq = adf4351.calc_freq;
-			vmag_val-=1000;
+//			vmag_val-=1000;
 		}
+		/* Convert to db using equation: vmag_db = 20*log10(vmag)
+		 * Scaled by 100 for plotting purpose */
+		vmag_val = 20*log10(vmag_val+1) * 100;
 		vmag[idx] = vmag_val;
 		idx++;
 
@@ -232,12 +314,14 @@ int main(void)
   MX_ADC1_Init();
   MX_SPI1_Init();
   MX_TIM2_Init();
-  MX_USART1_UART_Init();
   MX_USART6_UART_Init();
   /* USER CODE BEGIN 2 */
   lcd_init();
   HMI_Init();
   Welcome();
+
+  /* First start the UART interrupt reception */
+  HAL_UART_Receive_IT(&huart6, &rxTemp, 1);
   /* USER CODE END 2 */
 
   /* Infinite loop */
