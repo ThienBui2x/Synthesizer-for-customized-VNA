@@ -33,7 +33,8 @@ uint8_t volatile x_curr_val = 0;
 uint8_t volatile y_prev_val = 0;
 uint8_t volatile x_prev_val = 0;
 
-uint8_t is_default = TRUE;
+uint8_t volatile is_default = TRUE;
+uint8_t volatile is_scanning = FALSE;
 
 extern char cursor[2];
 extern char welcome[3][12];

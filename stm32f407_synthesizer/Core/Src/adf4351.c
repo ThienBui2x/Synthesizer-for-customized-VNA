@@ -7,6 +7,7 @@
 
 /* Includes ------------------------------------------------------------------*/
 #include "adf4351.h"
+#include "adf4351_hmi.h"
 #include "tim.h"
 #include "spi.h"
 #include "adc.h"
@@ -17,6 +18,7 @@
 /* Variables -----------------------------------------------------------------*/
 ADF4351_TypeDef adf4351 = {0};
 
+extern uint8_t volatile is_scanning;
 extern uint16_t volatile vmag_val;
 
 /* Function definition -------------------------------------------------------*/
@@ -315,7 +317,8 @@ uint8_t ADF4351_Scanning(uint64_t start, uint64_t stop, uint64_t step)
 	{
 		uint64_t new_freq = start;
 		uint16_t idx = 0;
-		while(new_freq < stop)
+		is_scanning = TRUE;
+		while((new_freq <= stop) && (is_scanning))
 		{
 			HAL_GPIO_TogglePin(BLUE_LED_GPIO_Port, BLUE_LED_Pin);
 			HAL_Delay(50);

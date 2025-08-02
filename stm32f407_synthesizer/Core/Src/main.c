@@ -71,6 +71,8 @@ extern uint8_t  volatile x_curr_val;
 extern uint8_t  volatile y_prev_val;
 extern uint8_t  volatile x_prev_val;
 
+extern uint8_t volatile is_default;
+extern uint8_t volatile is_scanning;
 uint16_t volatile idx = 0;
 
 // Will move to a separate file for USART later
@@ -119,6 +121,8 @@ void UART_Header_Rx(uint8_t *rxBuf)
     /* Reconstruct full values */
     adf4351.start_freq = (uint64_t)firstBitStart * 1000000000ULL + otherBitsStart;
     adf4351.stop_freq  = (uint64_t)firstBitStop  * 1000000000ULL + otherBitsStop;
+
+    is_default = FALSE;
 }
 
 void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
@@ -142,7 +146,7 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
 				UART_Header_Rx(rxBuf);
 			}
 
-			/* In case START/STOP command */
+			/* In case START/STOP commands */
 			// WindowApp should block START button when it is already pressed
 			// -> need to STOP first and vice versa
 			if(strcmp((char *)rxBuf, "Start") == 0)
@@ -150,7 +154,54 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
 				isAppRun = TRUE;
 				isHeaderSent = TRUE;
 			}
-			else if(strcmp((char *)rxBuf, "Stop") == 0) isAppRun = FALSE;
+			else if(strcmp((char *)rxBuf, "Stop") == 0)
+			{
+				isAppRun = FALSE;
+
+				/* Stop the current measurement and return to HOME menu */
+			    if(hmi.curr_state == Plot_VMAG)
+			    {
+			        /* Toggle plotting just like GPIO OK button */
+			        hmi.while_break = !hmi.while_break;
+			    }
+			    if(hmi.curr_state == Scan_RF_Out)
+			    {
+			    	is_scanning = FALSE;
+			    }
+			}
+
+			/* In case ARROW navigator commands */
+			if(strcmp((char *)rxBuf, "UP") == 0)
+			{
+			    hmi.button = UP;
+			}
+			else if(strcmp((char *)rxBuf, "DOWN") == 0)
+			{
+			    hmi.button = DOWN;
+			}
+			else if(strcmp((char *)rxBuf, "OK") == 0)
+			{
+			    hmi.button = OK;
+
+			    if(hmi.curr_state == Plot_VMAG)
+			    {
+			        /* Toggle plotting just like GPIO OK button */
+			        hmi.while_break = !hmi.while_break;
+			    }
+			}
+			else if(strcmp((char *)rxBuf, "BACK") == 0)
+			{
+			    hmi.button = BACK;
+
+			    if(hmi.curr_state == Plot_VMAG && hmi.while_break == FALSE)
+			    {
+			        hmi.while_break = TRUE;
+			    }
+			}
+			else if(strcmp((char *)rxBuf, "FORW") == 0)
+			{
+			    hmi.button = FORW;
+			}
 		}
 		else
 		{
@@ -200,6 +251,11 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 			  /* Toggle to Start/Stop plotting */
 			  if (hmi.while_break == TRUE) hmi.while_break = FALSE;
 			  else hmi.while_break = TRUE;
+		  }
+
+		  if(hmi.curr_state == Scan_RF_Out)
+		  {
+			  is_scanning = FALSE;
 		  }
 	  }
 
