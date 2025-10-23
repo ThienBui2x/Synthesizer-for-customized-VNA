@@ -18,6 +18,7 @@ volatile hmi_status hmi;
 
 uint16_t volatile vmag[1000] = {0};
 uint16_t volatile vmag_val = 0;
+uint16_t volatile vphs_val = 0;
 uint16_t volatile vmag_min = 65535;
 uint16_t volatile vmag_ave = 0;
 uint16_t volatile vmag_idx = 0;
@@ -726,12 +727,12 @@ void Scan_RF_Out(void)
 					vmag_idx = SAMPLES+OFFSET;
 
 					/* Clear the old scan freq before new measurement */
-					snprintf(str2screen, sizeof(str2screen), "freq = %s Hz", str_freq);
-					draw_string(COL_OFFSET, ROW_OFFSET+CHAR_HEIGHT_SMALL*LINE1, COLOR_BG, 1, str2screen);
+//					snprintf(str2screen, sizeof(str2screen), "freq = %s Hz", str_freq);
+//					draw_string(COL_OFFSET, ROW_OFFSET+CHAR_HEIGHT_SMALL*LINE1, COLOR_BG, 1, str2screen);
 				}
-				num2str(adf4351.scan_freq, str_freq, sizeof(str_freq));
-				snprintf(str2screen, sizeof(str2screen), "freq = %s Hz", str_freq);
-				draw_string(COL_OFFSET, ROW_OFFSET+CHAR_HEIGHT_SMALL*LINE1, COLOR_TEXT, 1, str2screen);
+//				num2str(adf4351.scan_freq, str_freq, sizeof(str_freq));
+//				snprintf(str2screen, sizeof(str2screen), "freq = %s Hz", str_freq);
+//				draw_string(COL_OFFSET, ROW_OFFSET+CHAR_HEIGHT_SMALL*LINE1, COLOR_TEXT, 1, str2screen);
 				break;
 
 			case (FORW):

@@ -56,6 +56,7 @@
 extern volatile hmi_status hmi;
 extern uint16_t volatile vmag[1000];
 extern uint16_t volatile vmag_val;
+extern uint16_t volatile vphs_val;
 extern uint16_t volatile vmag_min;
 extern uint16_t volatile vmag_ave;
 extern uint16_t volatile vmag_idx;
@@ -281,10 +282,16 @@ void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef *hadc)
 		}
 
 		/* Read VMAG values from ADC */
-		vmag_val = HAL_ADC_GetValue(&adf4351_hadc);
+//        uint32_t packed = HAL_ADCEx_MultiModeGetValue(hadc);
+//        uint16_t adc1_val = (uint16_t)(packed & 0xFFFF);
+//        uint16_t adc2_val = (uint16_t)(packed >> 16);
 
-		char txBuf[6];
-		sprintf(txBuf, "%04X\n", (uint16_t)vmag_val);
+		vmag_val = HAL_ADC_GetValue(&adf4351_hadc);
+//		vphs_val = 0;
+		vphs_val = HAL_ADC_GetValue(&adf4351_hadc2);
+
+		char txBuf[12];
+		sprintf(txBuf, "%04X%04X\n", (uint16_t)vmag_val, (uint16_t)vphs_val);
 		HAL_UART_Transmit(&huart6, (uint8_t *)txBuf, strlen(txBuf), 10);
 
 		if( vmag_val < vmag_min)
@@ -299,39 +306,39 @@ void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef *hadc)
 		vmag[idx] = vmag_val;
 		idx++;
 
-		/* The first OFFSET values to find VMAG average */
-		if(vmag_idx < OFFSET)
-		{
-			vmag_ave += vmag_val;
-		}
-		else
-		{
-			if(vmag_idx == OFFSET)
-			{
-				vmag_ave /= OFFSET;
-				y_mean_val = y_max_val-y_min_val+1;
-				vmag_upper_bound = y_max_val * vmag_ave / y_mean_val;
-				vmag_lower_bound = y_min_val * vmag_ave / y_mean_val;
-			}
-
-			/* Draw the pattern */
-			x_curr_val = (vmag_idx-OFFSET) + (X_AXIS_LEFT+1);
-			if(vmag_val > vmag_upper_bound) y_curr_val = y_min_val;
-			else if(vmag_val < vmag_lower_bound) y_curr_val = y_max_val;
-			else y_curr_val = (vmag_val * y_mean_val) / vmag_ave;
-
-			/* The higher y_value, the lower the y-plot */
-			y_curr_val = y_curr_val + 2*(y_mean_val-y_curr_val);
-
-			if(vmag_idx > OFFSET)
-			{
-				Bresenham_line_algorithm(x_prev_val, y_prev_val, x_curr_val, y_curr_val);
-			}
-
-			y_prev_val = y_curr_val;
-			x_prev_val = x_curr_val;
-		}
-		vmag_idx++;
+//		/* The first OFFSET values to find VMAG average */
+//		if(vmag_idx < OFFSET)
+//		{
+//			vmag_ave += vmag_val;
+//		}
+//		else
+//		{
+//			if(vmag_idx == OFFSET)
+//			{
+//				vmag_ave /= OFFSET;
+//				y_mean_val = y_max_val-y_min_val+1;
+//				vmag_upper_bound = y_max_val * vmag_ave / y_mean_val;
+//				vmag_lower_bound = y_min_val * vmag_ave / y_mean_val;
+//			}
+//
+//			/* Draw the pattern */
+//			x_curr_val = (vmag_idx-OFFSET) + (X_AXIS_LEFT+1);
+//			if(vmag_val > vmag_upper_bound) y_curr_val = y_min_val;
+//			else if(vmag_val < vmag_lower_bound) y_curr_val = y_max_val;
+//			else y_curr_val = (vmag_val * y_mean_val) / vmag_ave;
+//
+//			/* The higher y_value, the lower the y-plot */
+//			y_curr_val = y_curr_val + 2*(y_mean_val-y_curr_val);
+//
+//			if(vmag_idx > OFFSET)
+//			{
+//				Bresenham_line_algorithm(x_prev_val, y_prev_val, x_curr_val, y_curr_val);
+//			}
+//
+//			y_prev_val = y_curr_val;
+//			x_prev_val = x_curr_val;
+//		}
+//		vmag_idx++;
 	}
 }
 /* USER CODE END 0 */
@@ -371,6 +378,7 @@ int main(void)
   MX_SPI1_Init();
   MX_TIM2_Init();
   MX_USART6_UART_Init();
+  MX_ADC2_Init();
   /* USER CODE BEGIN 2 */
   lcd_init();
   HMI_Init();
