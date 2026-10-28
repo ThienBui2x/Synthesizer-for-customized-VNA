@@ -40,3 +40,8 @@ Firmware for a self-built, low-cost measurement system for **real-time resonance
 ## Project context
 
 This firmware was developed as part of a research project on **metamaterial-based frequency sensing** at the University of Stuttgart / Vietnamese-German University. The goal was a measurement concept that determines resonances without a commercial VNA.
+
+## Publication
+L. W. Y. Liu, T. V. Bui, N. T. H. Truong, C. K. Chan, N. H. Nguyen:
+"Contact-Based Glucose Measurements Without Any Vector Network Analyzer",
+Electronics, 15(17), 3922, 2026. https://doi.org/10.3390/electronics15173922
