@@ -21,6 +21,7 @@
 #include "adc.h"
 #include "spi.h"
 #include "tim.h"
+#include "usart.h"
 #include "gpio.h"
 
 /* Private includes ----------------------------------------------------------*/
@@ -29,6 +30,9 @@
 #include "adf4351_hmi.h"
 #include "adf4351.h"
 #include "math.h"
+#include "stdio.h"
+#include "string.h"
+#include "stdlib.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -38,7 +42,7 @@
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
-
+#define BUF_SIZE 	50
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -52,6 +56,7 @@
 extern volatile hmi_status hmi;
 extern uint16_t volatile vmag[1000];
 extern uint16_t volatile vmag_val;
+extern uint16_t volatile vphs_val;
 extern uint16_t volatile vmag_min;
 extern uint16_t volatile vmag_ave;
 extern uint16_t volatile vmag_idx;
@@ -67,7 +72,16 @@ extern uint8_t  volatile x_curr_val;
 extern uint8_t  volatile y_prev_val;
 extern uint8_t  volatile x_prev_val;
 
+extern uint8_t volatile is_default;
+extern uint8_t volatile is_scanning;
 uint16_t volatile idx = 0;
+
+// Will move to a separate file for USART later
+uint8_t rxBuf[BUF_SIZE];
+uint8_t rxTemp;
+uint8_t rxCnt = 0;
+uint8_t isAppRun = FALSE;
+uint8_t isHeaderSent = FALSE;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -78,6 +92,129 @@ void SystemClock_Config(void);
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
+// This function allows WindowApp to control the freq parameters
+// No more control via LCD screen with button (slow & inefficient)
+// State 'Set_RF_Range' reworks to 'Show_RF_Range' (could be removed!!) -> separate Ticket
+void UART_Header_Rx(uint8_t *rxBuf)
+{
+    char temp[9]; // temporary buffer for hex fields
+    // Extract slices and convert
+    strncpy(temp, (const char *)rxBuf, 2);
+    temp[2] = '\0';
+    uint8_t firstBitStart = (uint8_t)strtoul(temp, NULL, 16);
+
+    strncpy(temp, (const char *)rxBuf + 2, 8);
+    temp[8] = '\0';
+    uint32_t otherBitsStart = (uint32_t)strtoul(temp, NULL, 16);
+
+    strncpy(temp, (const char *)rxBuf + 10, 2);
+    temp[2] = '\0';
+    uint8_t firstBitStop = (uint8_t)strtoul(temp, NULL, 16);
+
+    strncpy(temp, (const char *)rxBuf + 12, 8);
+    temp[8] = '\0';
+    uint32_t otherBitsStop = (uint32_t)strtoul(temp, NULL, 16);
+
+    strncpy(temp, (const char *)rxBuf + 20, 8);
+    temp[8] = '\0';
+    adf4351.step_freq = (uint64_t)strtoul(temp, NULL, 16);
+
+    /* Reconstruct full values */
+    adf4351.start_freq = (uint64_t)firstBitStart * 1000000000ULL + otherBitsStart;
+    adf4351.stop_freq  = (uint64_t)firstBitStop  * 1000000000ULL + otherBitsStop;
+
+    is_default = FALSE;
+}
+
+void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
+{
+	/* Prevent unused argument(s) compilation warning */
+	UNUSED(huart);
+	if(huart->Instance == USART6)
+	{
+		/* Each command, data ends with '\n' */
+		if(rxTemp == '\n')
+		{
+			/* Manually add terminate character to the RxBuf */
+			rxBuf[rxCnt] = '\0';
+			rxCnt = 0;
+
+			/* The data extraction is ONLY executed after START command */
+			if(isHeaderSent)
+			{
+				isHeaderSent = FALSE;
+				/* Extract freq information */
+				UART_Header_Rx(rxBuf);
+			}
+
+			/* In case START/STOP commands */
+			// WindowApp should block START button when it is already pressed
+			// -> need to STOP first and vice versa
+			if(strcmp((char *)rxBuf, "Start") == 0)
+			{
+				isAppRun = TRUE;
+				isHeaderSent = TRUE;
+			}
+			else if(strcmp((char *)rxBuf, "Stop") == 0)
+			{
+				isAppRun = FALSE;
+
+				/* Stop the current measurement and return to HOME menu */
+			    if(hmi.curr_state == Plot_VMAG)
+			    {
+			        /* Toggle plotting just like GPIO OK button */
+			        hmi.while_break = !hmi.while_break;
+			    }
+			    if(hmi.curr_state == Scan_RF_Out)
+			    {
+			    	is_scanning = FALSE;
+			    }
+			}
+
+			/* In case ARROW navigator commands */
+			if(strcmp((char *)rxBuf, "UP") == 0)
+			{
+			    hmi.button = UP;
+			}
+			else if(strcmp((char *)rxBuf, "DOWN") == 0)
+			{
+			    hmi.button = DOWN;
+			}
+			else if(strcmp((char *)rxBuf, "OK") == 0)
+			{
+			    hmi.button = OK;
+
+			    if(hmi.curr_state == Plot_VMAG)
+			    {
+			        /* Toggle plotting just like GPIO OK button */
+			        hmi.while_break = !hmi.while_break;
+			    }
+			}
+			else if(strcmp((char *)rxBuf, "BACK") == 0)
+			{
+			    hmi.button = BACK;
+
+			    if(hmi.curr_state == Plot_VMAG && hmi.while_break == FALSE)
+			    {
+			        hmi.while_break = TRUE;
+			    }
+			}
+			else if(strcmp((char *)rxBuf, "FORW") == 0)
+			{
+			    hmi.button = FORW;
+			}
+		}
+		else
+		{
+			/* Keep reading data until reaching '\n' character */
+			if(rxCnt < BUF_SIZE - 1) rxBuf[rxCnt++] = rxTemp;
+			else rxCnt = 0;
+		}
+		/* Restart the interrupt reception for next byte */
+		HAL_UART_Receive_IT(huart, &rxTemp, 1);
+	}
+}
+
 void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 {
   /* Prevent unused argument(s) compilation warning */
@@ -116,6 +253,11 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 			  if (hmi.while_break == TRUE) hmi.while_break = FALSE;
 			  else hmi.while_break = TRUE;
 		  }
+
+		  if(hmi.curr_state == Scan_RF_Out)
+		  {
+			  is_scanning = FALSE;
+		  }
 	  }
 
 	  if (GPIO_Pin == FORW_BUT_Pin)
@@ -140,52 +282,63 @@ void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef *hadc)
 		}
 
 		/* Read VMAG values from ADC */
+//        uint32_t packed = HAL_ADCEx_MultiModeGetValue(hadc);
+//        uint16_t adc1_val = (uint16_t)(packed & 0xFFFF);
+//        uint16_t adc2_val = (uint16_t)(packed >> 16);
+
 		vmag_val = HAL_ADC_GetValue(&adf4351_hadc);
-		/* Convert to db using equation: vmag_db = 20*log10(vmag)
-		 * Scaled by 100 for plotting purpose */
-		vmag_val = 20*log10(vmag_val+1) * 100;
+//		vphs_val = 0;
+		vphs_val = HAL_ADC_GetValue(&adf4351_hadc2);
+
+		char txBuf[12];
+		sprintf(txBuf, "%04X%04X\n", (uint16_t)vmag_val, (uint16_t)vphs_val);
+		HAL_UART_Transmit(&huart6, (uint8_t *)txBuf, strlen(txBuf), 10);
+
 		if( vmag_val < vmag_min)
 		{
 			vmag_min = vmag_val;
 			adf4351.scan_freq = adf4351.calc_freq;
-			vmag_val-=1000;
+//			vmag_val-=1000;
 		}
+		/* Convert to db using equation: vmag_db = 20*log10(vmag)
+		 * Scaled by 100 for plotting purpose */
+		vmag_val = 20*log10(vmag_val+1) * 100;
 		vmag[idx] = vmag_val;
 		idx++;
 
-		/* The first OFFSET values to find VMAG average */
-		if(vmag_idx < OFFSET)
-		{
-			vmag_ave += vmag_val;
-		}
-		else
-		{
-			if(vmag_idx == OFFSET)
-			{
-				vmag_ave /= OFFSET;
-				y_mean_val = y_max_val-y_min_val+1;
-				vmag_upper_bound = y_max_val * vmag_ave / y_mean_val;
-				vmag_lower_bound = y_min_val * vmag_ave / y_mean_val;
-			}
-
-			/* Draw the pattern */
-			x_curr_val = (vmag_idx-OFFSET) + (X_AXIS_LEFT+1);
-			if(vmag_val > vmag_upper_bound) y_curr_val = y_min_val;
-			else if(vmag_val < vmag_lower_bound) y_curr_val = y_max_val;
-			else y_curr_val = (vmag_val * y_mean_val) / vmag_ave;
-
-			/* The higher y_value, the lower the y-plot */
-			y_curr_val = y_curr_val + 2*(y_mean_val-y_curr_val);
-
-			if(vmag_idx > OFFSET)
-			{
-				Bresenham_line_algorithm(x_prev_val, y_prev_val, x_curr_val, y_curr_val);
-			}
-
-			y_prev_val = y_curr_val;
-			x_prev_val = x_curr_val;
-		}
-		vmag_idx++;
+//		/* The first OFFSET values to find VMAG average */
+//		if(vmag_idx < OFFSET)
+//		{
+//			vmag_ave += vmag_val;
+//		}
+//		else
+//		{
+//			if(vmag_idx == OFFSET)
+//			{
+//				vmag_ave /= OFFSET;
+//				y_mean_val = y_max_val-y_min_val+1;
+//				vmag_upper_bound = y_max_val * vmag_ave / y_mean_val;
+//				vmag_lower_bound = y_min_val * vmag_ave / y_mean_val;
+//			}
+//
+//			/* Draw the pattern */
+//			x_curr_val = (vmag_idx-OFFSET) + (X_AXIS_LEFT+1);
+//			if(vmag_val > vmag_upper_bound) y_curr_val = y_min_val;
+//			else if(vmag_val < vmag_lower_bound) y_curr_val = y_max_val;
+//			else y_curr_val = (vmag_val * y_mean_val) / vmag_ave;
+//
+//			/* The higher y_value, the lower the y-plot */
+//			y_curr_val = y_curr_val + 2*(y_mean_val-y_curr_val);
+//
+//			if(vmag_idx > OFFSET)
+//			{
+//				Bresenham_line_algorithm(x_prev_val, y_prev_val, x_curr_val, y_curr_val);
+//			}
+//
+//			y_prev_val = y_curr_val;
+//			x_prev_val = x_curr_val;
+//		}
+//		vmag_idx++;
 	}
 }
 /* USER CODE END 0 */
@@ -224,10 +377,15 @@ int main(void)
   MX_ADC1_Init();
   MX_SPI1_Init();
   MX_TIM2_Init();
+  MX_USART6_UART_Init();
+  MX_ADC2_Init();
   /* USER CODE BEGIN 2 */
   lcd_init();
   HMI_Init();
   Welcome();
+
+  /* First start the UART interrupt reception */
+  HAL_UART_Receive_IT(&huart6, &rxTemp, 1);
   /* USER CODE END 2 */
 
   /* Infinite loop */

@@ -7,6 +7,7 @@
 
 /* Includes ------------------------------------------------------------------*/
 #include "adf4351.h"
+#include "adf4351_hmi.h"
 #include "tim.h"
 #include "spi.h"
 #include "adc.h"
@@ -17,6 +18,7 @@
 /* Variables -----------------------------------------------------------------*/
 ADF4351_TypeDef adf4351 = {0};
 
+extern uint8_t volatile is_scanning;
 extern uint16_t volatile vmag_val;
 
 /* Function definition -------------------------------------------------------*/
@@ -128,7 +130,7 @@ void ADF4351_Initialize(void)
 	adf4351.R4.AUX_OUT_EN	= AUX_OUTPUT_DISABLED;
 	adf4351.R4.AUX_OUT_POW	= AUX_OUTPUT_POWER_MINUS_4dBm;
 	adf4351.R4.RF_OUT_EN	= RF_OUTPUT_ENABLED;
-	adf4351.R4.OUT_POW		= RF_OUTPUT_POWER_MINUS_4dBm;
+	adf4351.R4.OUT_POW		= RF_OUTPUT_POWER_PLUS_5dBm;
 
 	adf4351.R5.LD_PIN_MODE	= LOCK_DETECT_PIN_DIGITAL_LOCK;
 	adf4351.R5.RESERVED_HIGH= 3;
@@ -315,17 +317,17 @@ uint8_t ADF4351_Scanning(uint64_t start, uint64_t stop, uint64_t step)
 	{
 		uint64_t new_freq = start;
 		uint16_t idx = 0;
-		while(new_freq < stop)
+		is_scanning = TRUE;
+		while((new_freq <= stop) && (is_scanning))
 		{
 			HAL_GPIO_TogglePin(BLUE_LED_GPIO_Port, BLUE_LED_Pin);
-			HAL_Delay(50);
+			HAL_Delay(200);
 			if ( ADF4351_Set_Out_Freq(new_freq) == 1)
 			{
 				HAL_GPIO_TogglePin(RED_LED_GPIO_Port, RED_LED_Pin);
 			}
 
 			ADF4351_DataConvert();
-
 			new_freq = new_freq + step;
 			idx++;
 		}
@@ -339,6 +341,7 @@ uint8_t ADF4351_Scanning(uint64_t start, uint64_t stop, uint64_t step)
 void ADF4351_DataConvert(void)
 {
 	HAL_ADC_Start_IT(&adf4351_hadc);
+	HAL_ADC_Start_IT(&adf4351_hadc2);
 }
 
 /*

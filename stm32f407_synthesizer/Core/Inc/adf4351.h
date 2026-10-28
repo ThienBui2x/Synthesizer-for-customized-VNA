@@ -17,9 +17,10 @@ extern "C" {
 #include "math.h"
 
 /* Defines -------------------------------------------------------------------*/
-#define adf4351_htim htim1
-#define adf4351_hspi hspi1
-#define adf4351_hadc hadc1
+#define adf4351_htim 	htim1
+#define adf4351_hspi  	hspi1
+#define adf4351_hadc  	hadc1
+#define adf4351_hadc2	hadc2
 
 #define REF_FREQ_VAL	25000000.0			/* 25Mhz Crystal Oscillator */
 #define REF_FREQ_ERR	500.0				/* Adjust to Ref Freq Error */

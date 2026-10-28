@@ -59,8 +59,6 @@ void Error_Handler(void);
 /* Private defines -----------------------------------------------------------*/
 #define test_Pin GPIO_PIN_1
 #define test_GPIO_Port GPIOC
-#define VMAG_Pin GPIO_PIN_1
-#define VMAG_GPIO_Port GPIOA
 #define ADF4351_LE_Pin GPIO_PIN_4
 #define ADF4351_LE_GPIO_Port GPIOA
 #define ADF4351_CLK_Pin GPIO_PIN_5
